@@ -38,7 +38,10 @@ app.use(limiter);
 // CORS configuration
 app.use(cors({
   origin: [
-    process.env.FRONTEND_URL || 'http://localhost:5173'
+    process.env.FRONTEND_URL || 'http://localhost:5173',
+    'https://elegant-pothos-5c2a00.netlify.app',
+    'http://localhost:5173',
+    'http://localhost:3000'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
