@@ -11,6 +11,8 @@ const googleAuthRoutes = require('./routes/googleAuth');
 const customerRoutes = require('./routes/customer');
 const vendorRoutes = require('./routes/vendor');
 const adminRoutes = require('./routes/admin');
+const productRoutes = require('./routes/products');
+const cartRoutes = require('./routes/cart');
 
 // Import passport configuration
 require('./config/passport');
@@ -36,8 +38,7 @@ app.use(limiter);
 // CORS configuration
 app.use(cors({
   origin: [
-    process.env.FRONTEND_URL || 'http://localhost:5173',
-    'https://cure-houzz.vercel.app'
+    process.env.FRONTEND_URL || 'http://localhost:5173'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -67,6 +68,8 @@ app.use('/api/auth', googleAuthRoutes);
 app.use('/api/customer', customerRoutes);
 app.use('/api/vendor', vendorRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/cart', cartRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
