@@ -65,7 +65,7 @@ router.get('/profile', protect, async (req, res) => {
  * @desc    Update customer profile
  * @access  Private
  */
-router.put('/profile', protect, requireVerification, async (req, res) => {
+router.put('/profile', async (req, res) => {
   try {
     const { id } = req.user;
     const { 
