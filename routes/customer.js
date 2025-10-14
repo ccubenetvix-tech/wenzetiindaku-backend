@@ -4,6 +4,15 @@ const { authenticateToken, protect, requireRole, requireVerification } = require
 
 const router = express.Router();
 
+// Handle OPTIONS requests for CORS preflight
+router.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.sendStatus(200);
+});
+
 // Apply authentication middleware to all routes
 router.use(authenticateToken);
 router.use(requireRole(['customer']));
@@ -13,7 +22,7 @@ router.use(requireRole(['customer']));
  * @desc    Get customer profile
  * @access  Private
  */
-router.get('/profile', protect, async (req, res) => {
+router.get('/profile', async (req, res) => {
   try {
     const { id } = req.user;
 
@@ -151,7 +160,7 @@ router.put('/profile', async (req, res) => {
  * @desc    Get customer orders
  * @access  Private
  */
-router.get('/orders', protect, requireVerification, async (req, res) => {
+router.get('/orders', requireVerification, async (req, res) => {
   try {
     const { id } = req.user;
     const { page = 1, limit = 10 } = req.query;
@@ -209,7 +218,7 @@ router.get('/orders', protect, requireVerification, async (req, res) => {
  * @desc    Get specific order details
  * @access  Private
  */
-router.get('/orders/:orderId', protect, requireVerification, async (req, res) => {
+router.get('/orders/:orderId', requireVerification, async (req, res) => {
   try {
     const { id } = req.user;
     const { orderId } = req.params;
@@ -257,7 +266,7 @@ router.get('/orders/:orderId', protect, requireVerification, async (req, res) =>
  * @desc    Get customer wishlist
  * @access  Private
  */
-router.get('/wishlist', protect, requireVerification, async (req, res) => {
+router.get('/wishlist', requireVerification, async (req, res) => {
   try {
     const { id } = req.user;
 
@@ -301,7 +310,7 @@ router.get('/wishlist', protect, requireVerification, async (req, res) => {
  * @desc    Add item to wishlist
  * @access  Private
  */
-router.post('/wishlist', protect, requireVerification, async (req, res) => {
+router.post('/wishlist', requireVerification, async (req, res) => {
   try {
     const { id } = req.user;
     const { productId } = req.body;
@@ -374,7 +383,7 @@ router.post('/wishlist', protect, requireVerification, async (req, res) => {
  * @desc    Remove item from wishlist
  * @access  Private
  */
-router.delete('/wishlist/:productId', protect, requireVerification, async (req, res) => {
+router.delete('/wishlist/:productId', requireVerification, async (req, res) => {
   try {
     const { id } = req.user;
     const { productId } = req.params;
