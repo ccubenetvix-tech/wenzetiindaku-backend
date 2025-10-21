@@ -41,6 +41,26 @@ router.get('/profile', async (req, res) => {
       });
     }
 
+    // Determine registration method
+    let registrationMethod = 'email';
+    if (customer.google_id) {
+      registrationMethod = 'google';
+    } else if (customer.profile_photo && customer.verified && !customer.password) {
+      // Fallback: If user has profile photo, is verified, and has no password, likely Google
+      registrationMethod = 'google';
+    }
+
+    // Debug logging
+    console.log('Customer profile data:', {
+      id: customer.id,
+      email: customer.email,
+      google_id: customer.google_id,
+      profile_photo: customer.profile_photo,
+      verified: customer.verified,
+      password: customer.password ? 'exists' : 'null',
+      registrationMethod: registrationMethod
+    });
+
     res.json({
       success: true,
       data: {
@@ -53,7 +73,8 @@ router.get('/profile', async (req, res) => {
           role: customer.role,
           verified: customer.verified,
           createdAt: customer.created_at,
-          lastLogin: customer.last_login
+          lastLogin: customer.last_login,
+          registrationMethod: registrationMethod
         }
       }
     });
@@ -411,6 +432,131 @@ router.delete('/wishlist/:productId', requireVerification, async (req, res) => {
 
   } catch (error) {
     console.error('Remove from wishlist error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Internal server error'
+      }
+    });
+  }
+});
+
+/**
+ * @route   DELETE /api/customer/delete-account
+ * @desc    Delete customer account and all associated data
+ * @access  Private
+ */
+router.delete('/delete-account', async (req, res) => {
+  try {
+    const { id } = req.user;
+    const { confirmation } = req.body;
+
+    // Verify confirmation
+    if (confirmation !== 'DELETE') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Invalid confirmation. Please type "DELETE" to confirm account deletion.'
+        }
+      });
+    }
+
+    // Delete customer from customers table
+    const { error: customerError } = await supabaseAdmin
+      .from('customers')
+      .delete()
+      .eq('id', id);
+
+    if (customerError) {
+      console.error('Delete customer error:', customerError);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to delete customer account'
+        }
+      });
+    }
+
+    // Delete user from auth.users table
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(id);
+
+    if (authError) {
+      console.error('Delete auth user error:', authError);
+      // Customer is already deleted, but auth user deletion failed
+      // This is not critical as the customer data is gone
+    }
+
+    res.json({
+      success: true,
+      message: 'Account successfully deleted'
+    });
+
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Internal server error'
+      }
+    });
+  }
+});
+
+/**
+ * @route   POST /api/customer/fix-registration-method
+ * @desc    Fix registration method for users who registered with Google but don't have google_id
+ * @access  Private
+ */
+router.post('/fix-registration-method', async (req, res) => {
+  try {
+    const { id } = req.user;
+    const { registrationMethod } = req.body;
+
+    if (!registrationMethod || !['google', 'email'].includes(registrationMethod)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Invalid registration method'
+        }
+      });
+    }
+
+    const updateData = {};
+    if (registrationMethod === 'google') {
+      // Set a placeholder google_id to indicate Google registration
+      updateData.google_id = `google_${id}`;
+    }
+
+    const { data: customer, error } = await supabaseAdmin
+      .from('customers')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating registration method:', error);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to update registration method'
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Registration method updated successfully',
+      data: {
+        customer: {
+          id: customer.id,
+          registrationMethod: customer.google_id ? 'google' : 'email'
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Fix registration method error:', error);
     res.status(500).json({
       success: false,
       error: {

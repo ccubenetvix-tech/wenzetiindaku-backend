@@ -9,6 +9,142 @@ router.use(authenticateToken);
 router.use(requireRole(['vendor']));
 
 /**
+ * @route   POST /api/vendor/profile/photo
+ * @desc    Upload vendor profile photo to Supabase Storage and save URL
+ * @access  Private
+ */
+router.post('/profile/photo', protect, async (req, res) => {
+  try {
+    const { id } = req.user;
+    const { fileBase64, fileName } = req.body;
+
+    if (!fileBase64 || !fileName) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'fileBase64 and fileName are required' }
+      });
+    }
+
+    // Parse base64
+    const matches = fileBase64.match(/^data:(.*);base64,(.*)$/);
+    const mimeType = matches ? matches[1] : 'image/jpeg';
+    const base64Data = matches ? matches[2] : fileBase64;
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    const ext = fileName.split('.').pop() || 'jpg';
+    const path = `vendors/${id}/profile.${ext}`;
+
+    // Upload to Supabase Storage (public bucket)
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('public-images')
+      .upload(path, buffer, {
+        contentType: mimeType,
+        upsert: true,
+      });
+
+    if (uploadError) {
+      console.error('Supabase upload error:', uploadError);
+      return res.status(500).json({ success: false, error: { message: 'Failed to upload image' } });
+    }
+
+    // Get public URL
+    const { data: publicUrlData } = supabaseAdmin.storage
+      .from('public-images')
+      .getPublicUrl(path);
+
+    const publicUrl = publicUrlData?.publicUrl;
+
+    // Save to DB
+    const { data: vendor, error: updateError } = await supabaseAdmin
+      .from('vendors')
+      .update({ profile_photo: publicUrl, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error saving profile photo URL:', updateError);
+      return res.status(500).json({ success: false, error: { message: 'Failed to save image URL' } });
+    }
+
+    return res.json({ success: true, data: { url: publicUrl, vendor } });
+  } catch (error) {
+    console.error('Upload vendor profile photo error:', error);
+    return res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+  }
+});
+
+/**
+ * @route   POST /api/vendor/products/:productId/image
+ * @desc    Upload a product image to Supabase Storage and push URL into products.images
+ * @access  Private
+ */
+router.post('/products/:productId/image', protect, async (req, res) => {
+  try {
+    const { id } = req.user;
+    const { productId } = req.params;
+    const { fileBase64, fileName } = req.body;
+
+    if (!fileBase64 || !fileName) {
+      return res.status(400).json({ success: false, error: { message: 'fileBase64 and fileName are required' } });
+    }
+
+    // Verify ownership
+    const { data: product, error: findError } = await supabaseAdmin
+      .from('products')
+      .select('id, images')
+      .eq('id', productId)
+      .eq('vendor_id', id)
+      .single();
+
+    if (findError || !product) {
+      return res.status(404).json({ success: false, error: { message: 'Product not found' } });
+    }
+
+    const matches = fileBase64.match(/^data:(.*);base64,(.*)$/);
+    const mimeType = matches ? matches[1] : 'image/jpeg';
+    const base64Data = matches ? matches[2] : fileBase64;
+    const buffer = Buffer.from(base64Data, 'base64');
+    const ext = fileName.split('.').pop() || 'jpg';
+    const key = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+    const path = `products/${id}/${productId}/${key}`;
+
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('public-images')
+      .upload(path, buffer, { contentType: mimeType, upsert: true });
+
+    if (uploadError) {
+      console.error('Supabase upload error:', uploadError);
+      return res.status(500).json({ success: false, error: { message: 'Failed to upload image' } });
+    }
+
+    const { data: publicUrlData } = supabaseAdmin.storage
+      .from('public-images')
+      .getPublicUrl(path);
+    const url = publicUrlData?.publicUrl;
+
+    const nextImages = Array.isArray(product.images) ? [...product.images, url] : [url];
+
+    const { data: updated, error: saveError } = await supabaseAdmin
+      .from('products')
+      .update({ images: nextImages, updated_at: new Date().toISOString() })
+      .eq('id', productId)
+      .eq('vendor_id', id)
+      .select()
+      .single();
+
+    if (saveError) {
+      console.error('Save product images error:', saveError);
+      return res.status(500).json({ success: false, error: { message: 'Failed to save image URL' } });
+    }
+
+    return res.json({ success: true, data: { url, product: updated } });
+  } catch (error) {
+    console.error('Upload product image error:', error);
+    return res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+  }
+});
+/**
  * @route   GET /api/vendor/profile
  * @desc    Get vendor profile
  * @access  Private
@@ -53,7 +189,8 @@ router.get('/profile', protect, async (req, res) => {
           verified: vendor.verified,
           approved: vendor.approved,
           createdAt: vendor.created_at,
-          lastLogin: vendor.last_login
+          lastLogin: vendor.last_login,
+          registrationMethod: 'email' // Vendors can only register via email
         }
       }
     });

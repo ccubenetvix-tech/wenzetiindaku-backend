@@ -929,9 +929,17 @@ router.get('/me', authenticateToken, async (req, res) => {
         firstName: data.first_name,
         lastName: data.last_name,
         email: data.email,
+        profilePhoto: data.profile_photo,
         role: data.role,
         verified: data.verified,
-        createdAt: data.created_at
+        profile_completed: data.profile_completed,
+        gender: data.gender,
+        address: data.address,
+        phoneNumber: data.phone_number,
+        dateOfBirth: data.date_of_birth,
+        createdAt: data.created_at,
+        lastLogin: data.last_login,
+        registrationMethod: data.google_id ? 'google' : 'email'
       };
     } else if (role === 'vendor') {
       const { data, error } = await supabaseAdmin
@@ -966,7 +974,8 @@ router.get('/me', authenticateToken, async (req, res) => {
         role: data.role,
         verified: data.verified,
         approved: data.approved,
-        createdAt: data.created_at
+        createdAt: data.created_at,
+        registrationMethod: 'email' // Vendors can only register via email
       };
     }
 
