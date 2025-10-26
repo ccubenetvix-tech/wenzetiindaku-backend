@@ -19,7 +19,8 @@ router.get('/', async (req, res) => {
       sortOrder = 'desc',
       minPrice,
       maxPrice,
-      location
+      location,
+      vendor_id
     } = req.query;
 
     const offset = (page - 1) * limit;
@@ -48,6 +49,10 @@ router.get('/', async (req, res) => {
     // Apply filters
     if (category) {
       query = query.eq('category', category);
+    }
+
+    if (vendor_id) {
+      query = query.eq('vendor_id', vendor_id);
     }
 
     if (search) {
@@ -93,6 +98,108 @@ router.get('/', async (req, res) => {
 
   } catch (error) {
     console.error('Get products error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Internal server error'
+      }
+    });
+  }
+});
+
+/**
+ * @route   GET /api/products/vendors
+ * @desc    Get all approved and verified vendors
+ * @access  Public
+ */
+router.get('/vendors', async (req, res) => {
+  try {
+    const { page = 1, limit = 20, search } = req.query;
+    const offset = (page - 1) * limit;
+
+    let query = supabaseAdmin
+      .from('vendors')
+      .select('*')
+      .eq('approved', true)
+      .eq('verified', true)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    // Apply search filter
+    if (search) {
+      query = query.or(`business_name.ilike.%${search}%,description.ilike.%${search}%`);
+    }
+
+    const { data: vendors, error, count } = await query;
+
+    if (error) {
+      console.error('Error fetching vendors:', error);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to fetch vendors'
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        vendors: vendors || [],
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: count || 0,
+          pages: Math.ceil((count || 0) / limit)
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error in /vendors route:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Internal server error'
+      }
+    });
+  }
+});
+
+/**
+ * @route   GET /api/products/vendors/:vendorId
+ * @desc    Get vendor details by ID
+ * @access  Public
+ */
+router.get('/vendors/:vendorId', async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+
+    const { data: vendor, error } = await supabaseAdmin
+      .from('vendors')
+      .select('*')
+      .eq('id', vendorId)
+      .eq('approved', true)
+      .eq('verified', true)
+      .single();
+
+    if (error) {
+      console.error('Error fetching vendor:', error);
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: 'Vendor not found'
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        vendor
+      }
+    });
+  } catch (error) {
+    console.error('Error in /vendors/:vendorId route:', error);
     res.status(500).json({
       success: false,
       error: {

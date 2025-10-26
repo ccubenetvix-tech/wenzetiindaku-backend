@@ -9,6 +9,7 @@ const authenticateToken = async (req, res, next) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
+
     if (!token) {
       return res.status(401).json({
         success: false,
@@ -21,6 +22,7 @@ const authenticateToken = async (req, res, next) => {
     // Verify JWT token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
+    
     // Handle admin authentication
     if (decoded.role === 'admin') {
       req.user = {
@@ -30,10 +32,11 @@ const authenticateToken = async (req, res, next) => {
       };
     } else {
       // Get user from database for customers and vendors
+      const userId = decoded.userId || decoded.adminId;
       const { data: user, error } = await supabaseAdmin
         .from(decoded.role === 'vendor' ? 'vendors' : 'customers')
         .select('*')
-        .eq('id', decoded.userId)
+        .eq('id', userId)
         .single();
 
       if (error || !user) {
@@ -52,6 +55,7 @@ const authenticateToken = async (req, res, next) => {
         role: decoded.role,
         ...user
       };
+      
     }
 
     next();
@@ -105,7 +109,6 @@ const requireRole = (roles) => {
         }
       });
     }
-
     next();
   };
 };

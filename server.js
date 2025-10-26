@@ -43,7 +43,8 @@ app.use(cors({
     'https://wenzetiindaku-frontend.netlify.app',
     'https://wenzetiindaku-marketplace.netlify.app',
     'http://localhost:5173',
-    'http://localhost:3000'
+    'http://localhost:3000',
+    'https://jg8vq88d-5173.inc1.devtunnels.ms'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],

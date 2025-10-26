@@ -329,7 +329,7 @@ router.put('/profile', protect, requireVerification, async (req, res) => {
 
 /**
  * @route   GET /api/vendor/dashboard
- * @desc    Get vendor dashboard data
+ * @desc    Get vendor dashboard data 
  * @access  Private
  */
 router.get('/dashboard', protect, async (req, res) => {
@@ -582,7 +582,7 @@ router.post('/products', protect, async (req, res) => {
   try {
     const { id } = req.user;
     const {
-      name, description, price, category, images, stock, status = 'draft'
+      name, description, price, category, images, stock, status = 'active'
     } = req.body;
 
     if (!name || !description || !price || !category) {
