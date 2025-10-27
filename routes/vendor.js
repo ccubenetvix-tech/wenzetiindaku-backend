@@ -454,7 +454,7 @@ router.get('/dashboard', protect, async (req, res) => {
         price,
         stock,
         status,
-        image_url,
+        images,
         created_at
       `)
       .eq('vendor_id', id)
@@ -482,7 +482,7 @@ router.get('/dashboard', protect, async (req, res) => {
       topProducts: topProducts?.map(product => ({
         id: product.id,
         name: product.name,
-        image: product.image_url || '/marketplace.jpeg',
+        image: (product.images && product.images.length > 0) ? product.images[0] : '/marketplace.jpeg',
         price: product.price,
         sales: 0, // This would need to be calculated from order_items
         revenue: 0, // This would need to be calculated from order_items

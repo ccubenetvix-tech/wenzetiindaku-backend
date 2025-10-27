@@ -39,7 +39,7 @@ router.get('/', async (req, res) => {
           approved,
           verified
         )
-      `)
+      `, { count: 'exact' })
       .eq('status', 'active')
       .eq('vendor.approved', true)
       .eq('vendor.verified', true)
@@ -119,7 +119,7 @@ router.get('/vendors', async (req, res) => {
 
     let query = supabaseAdmin
       .from('vendors')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('approved', true)
       .eq('verified', true)
       .order('created_at', { ascending: false })
