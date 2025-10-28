@@ -408,28 +408,6 @@ router.get('/dashboard', protect, async (req, res) => {
       ordersCount: orders?.length,
       customersCount: customers?.length
     });
-    
-    // Calculate growth (compare with previous month)
-    const currentMonth = new Date();
-    const previousMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
-    const currentMonthStart = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-    
-    const { data: currentMonthOrders } = await supabaseAdmin
-      .from('orders')
-      .select('total_amount')
-      .eq('vendor_id', id)
-      .gte('created_at', currentMonthStart.toISOString());
-    
-    const { data: previousMonthOrders } = await supabaseAdmin
-      .from('orders')
-      .select('total_amount')
-      .eq('vendor_id', id)
-      .gte('created_at', previousMonth.toISOString())
-      .lt('created_at', currentMonthStart.toISOString());
-    
-    const currentMonthSales = currentMonthOrders?.reduce((sum, order) => sum + (order.total_amount || 0), 0) || 0;
-    const previousMonthSales = previousMonthOrders?.reduce((sum, order) => sum + (order.total_amount || 0), 0) || 0;
-    const growth = previousMonthSales > 0 ? ((currentMonthSales - previousMonthSales) / previousMonthSales) * 100 : 0;
 
     // Get recent orders with customer details
     const { data: recentOrders, error: recentOrdersError } = await supabaseAdmin
@@ -466,9 +444,7 @@ router.get('/dashboard', protect, async (req, res) => {
         totalSales: totalSales,
         totalOrders: totalOrders,
         totalProducts: totalProducts,
-        totalCustomers: uniqueCustomers,
-        growth: Math.round(growth * 100) / 100,
-        conversionRate: totalOrders > 0 ? Math.round((totalOrders / Math.max(uniqueCustomers, 1)) * 100) / 100 : 0
+        totalCustomers: uniqueCustomers
       },
       recentOrders: recentOrders?.map(order => ({
         id: order.id,
