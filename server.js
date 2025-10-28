@@ -22,20 +22,7 @@ const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 
-// Security middleware
-app.use(helmet());
-
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use(limiter);
-
-// CORS configuration
+// CORS configuration (must be BEFORE any middleware that may terminate the request)
 app.use(cors({
   origin: [
     process.env.FRONTEND_URL || 'http://localhost:5173',
@@ -48,19 +35,32 @@ app.use(cors({
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'Pragma'],
   optionsSuccessStatus: 200,
   preflightContinue: false
 }));
 
-// Handle preflight requests explicitly
-app.options('*', (req, res) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.sendStatus(200);
-});
+// Ensure preflight handled for all routes
+app.options('*', cors());
+
+// Security middleware
+app.use(helmet());
+
+// Rate limiting (disabled or relaxed in development, JSON handler)
+const isProd = (process.env.NODE_ENV || 'development') === 'production';
+if (isProd) {
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 1000,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => req.method === 'OPTIONS',
+    handler: (req, res) => {
+      res.status(429).json({ error: 'Too many requests' });
+    },
+  });
+  app.use(limiter);
+}
 
 // Logging middleware
 app.use(morgan('combined'));
