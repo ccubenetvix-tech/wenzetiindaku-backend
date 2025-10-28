@@ -15,11 +15,17 @@ router.use(authenticateToken);
 router.get('/', async (req, res) => {
   try {
     const { id } = req.user;
+    
+    console.log('Fetching cart for customer:', id);
 
     const { data: cartItems, error } = await supabaseAdmin
       .from('cart')
       .select(`
-        *,
+        id,
+        quantity,
+        created_at,
+        updated_at,
+        product_id,
         product:products (
           id,
           name,
@@ -27,6 +33,7 @@ router.get('/', async (req, res) => {
           images,
           stock,
           status,
+          vendor_id,
           vendor:vendors (
             id,
             business_name,
@@ -35,10 +42,9 @@ router.get('/', async (req, res) => {
           )
         )
       `)
-      .eq('customer_id', id)
-      .eq('product.status', 'active')
-      .eq('product.vendor.approved', true)
-      .eq('product.vendor.verified', true);
+      .eq('customer_id', id);
+    
+    console.log('Raw cart query result:', cartItems?.length || 0, 'items');
 
     if (error) {
       console.error('Error fetching cart:', error);
@@ -50,9 +56,21 @@ router.get('/', async (req, res) => {
       });
     }
 
+    // Filter out items where product doesn't exist
+    const validCartItems = (cartItems || []).filter(item => {
+      const isValid = item.product !== null && item.product !== undefined;
+      if (!isValid) {
+        console.log('Filtered out cart item with missing product:', item.id);
+      }
+      return isValid;
+    });
+
+    console.log('Cart items before filter:', cartItems?.length || 0);
+    console.log('Cart items after filter:', validCartItems.length);
+
     res.json({
       success: true,
-      data: { cartItems: cartItems || [] }
+      data: { cartItems: validCartItems }
     });
 
   } catch (error) {
