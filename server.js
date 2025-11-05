@@ -26,13 +26,11 @@ app.set('trust proxy', 1);
 app.use(cors({
   origin: [
     process.env.FRONTEND_URL || 'http://localhost:5173',
-    'https://wenzetiindaku.vercel.app',
     'https://elegant-pothos-5c2a00.netlify.app',
-    'https://wenzetiindaku-frontend.netlify.app',
+    'https://wenze-tii-ndaku.netlify.app',
     'https://wenzetiindaku-marketplace.netlify.app',
     'http://localhost:5173',
     'http://localhost:3000',
-    'https://jg8vq88d-5173.inc1.devtunnels.ms'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
