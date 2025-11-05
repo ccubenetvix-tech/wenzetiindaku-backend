@@ -21,7 +21,7 @@ require('./config/passport');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
-
+app.set('trust proxy', 1);
 // CORS configuration (must be BEFORE any middleware that may terminate the request)
 app.use(cors({
   origin: [
