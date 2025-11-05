@@ -70,7 +70,7 @@ router.post('/customer/signup', async (req, res) => {
     }
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword = await bcrypt.hash(password, 8);
 
     // Generate OTP
     const otp = generateOTP();
