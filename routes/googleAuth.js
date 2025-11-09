@@ -25,9 +25,77 @@ const generateToken = (userId, role) => {
  * @desc    Google OAuth login
  * @access  Public
  */
-router.get('/google', passport.authenticate('google', {
-  scope: ['profile', 'email']
-}));
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  process.env.CLIENT_URL,
+  process.env.FALLBACK_FRONTEND_URL,
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'https://elegant-pothos-5c2a00.netlify.app',
+  'https://wenze-tii-ndaku.netlify.app',
+  'https://wenzetiindaku-marketplace.netlify.app'
+].filter(Boolean);
+
+const encodeState = (payload) => {
+  try {
+    return Buffer.from(JSON.stringify(payload)).toString('base64url');
+  } catch (error) {
+    console.error('Error encoding OAuth state payload:', error);
+    return null;
+  }
+};
+
+const decodeState = (state) => {
+  if (!state) return null;
+
+  try {
+    const json = Buffer.from(state, 'base64url').toString('utf8');
+    return JSON.parse(json);
+  } catch (error) {
+    console.error('Error decoding OAuth state payload:', error);
+    return null;
+  }
+};
+
+const resolveFrontendBase = (fallbackBase, ...candidates) => {
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    try {
+      const origin = new URL(candidate).origin;
+      if (allowedOrigins.includes(origin)) {
+        return origin;
+      }
+    } catch (error) {
+      // Ignore invalid URLs
+    }
+  }
+  return fallbackBase;
+};
+
+router.get('/google', (req, res, next) => {
+  const fallbackBase = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
+
+  const queryRedirect = req.query.redirect;
+  const headerOrigin = req.get('Origin');
+  const headerReferer = req.get('Referer');
+
+  const redirectBase = resolveFrontendBase(
+    fallbackBase,
+    queryRedirect,
+    headerOrigin,
+    headerReferer
+  );
+
+  const state = encodeState({
+    redirectBase,
+    timestamp: Date.now()
+  });
+
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    state
+  })(req, res, next);
+});
 
 /**
  * @route   GET /api/auth/google/callback
@@ -38,6 +106,12 @@ router.get('/google/callback',
   passport.authenticate('google', { session: false }),
   async (req, res) => {
     try {
+      const statePayload = decodeState(req.query.state);
+      const frontendBase = resolveFrontendBase(
+        process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173',
+        statePayload?.redirectBase
+      );
+
       const { id, displayName, emails, photos } = req.user;
       const email = emails[0].value;
       const normalizedEmail = normalizeEmail(email);
@@ -131,7 +205,6 @@ router.get('/google/callback',
       const token = generateToken(customer.id, 'customer');
 
       // Redirect to frontend with token
-      const frontendBase = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
       const redirectUrl = new URL('/auth/callback', frontendBase);
       redirectUrl.searchParams.set('token', token);
       redirectUrl.searchParams.set('isNewUser', String(isNewUser));
@@ -139,7 +212,11 @@ router.get('/google/callback',
       res.redirect(redirectUrl.toString());
     } catch (error) {
       console.error('Google OAuth callback error:', error);
-      const frontendBase = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
+      const statePayload = decodeState(req.query.state);
+      const frontendBase = resolveFrontendBase(
+        process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173',
+        statePayload?.redirectBase
+      );
       const redirectUrl = new URL('/customer/login', frontendBase);
       redirectUrl.searchParams.set('error', 'oauth_failed');
       redirectUrl.searchParams.set('message', 'Google authentication failed. Please try again.');
