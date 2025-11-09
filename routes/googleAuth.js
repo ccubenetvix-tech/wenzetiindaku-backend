@@ -131,12 +131,20 @@ router.get('/google/callback',
       const token = generateToken(customer.id, 'customer');
 
       // Redirect to frontend with token
-      const redirectUrl = `${process.env.FRONTEND_URL}/auth/callback?token=${token}&isNewUser=${isNewUser}`;
-      res.redirect(redirectUrl);
+      const frontendBase = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
+      const redirectUrl = new URL('/auth/callback', frontendBase);
+      redirectUrl.searchParams.set('token', token);
+      redirectUrl.searchParams.set('isNewUser', String(isNewUser));
 
+      res.redirect(redirectUrl.toString());
     } catch (error) {
       console.error('Google OAuth callback error:', error);
-      res.redirect(`${process.env.FRONTEND_URL}/login?error=oauth_failed`);
+      const frontendBase = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
+      const redirectUrl = new URL('/customer/login', frontendBase);
+      redirectUrl.searchParams.set('error', 'oauth_failed');
+      redirectUrl.searchParams.set('message', 'Google authentication failed. Please try again.');
+      res.redirect(redirectUrl.toString());
+
     }
   }
 );

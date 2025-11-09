@@ -1,4 +1,5 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const { supabaseAdmin } = require('../config/supabase');
 const { authenticateToken, protect, requireRole, requireVerification } = require('../middleware/auth');
 
@@ -98,15 +99,32 @@ router.get('/profile', async (req, res) => {
 router.put('/profile', async (req, res) => {
   try {
     const { id } = req.user;
-    const { 
-      firstName, 
-      lastName, 
-      profilePhoto, 
-      gender, 
-      address, 
-      phoneNumber, 
-      dateOfBirth 
+    const {
+      firstName,
+      lastName,
+      profilePhoto,
+      gender,
+      address,
+      phoneNumber,
+      dateOfBirth,
+      currentPassword,
+      newPassword
     } = req.body;
+
+    const { data: existingCustomer, error: fetchError } = await supabaseAdmin
+      .from('customers')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !existingCustomer) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: 'Customer not found'
+        }
+      });
+    }
 
     const updateData = {
       updated_at: new Date().toISOString()
@@ -120,8 +138,42 @@ router.put('/profile', async (req, res) => {
     if (phoneNumber) updateData.phone_number = phoneNumber.trim();
     if (dateOfBirth) updateData.date_of_birth = dateOfBirth;
 
+    // Handle password update
+    if (newPassword) {
+      if (!currentPassword) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: 'Current password is required to change password'
+          }
+        });
+      }
+
+      if (!existingCustomer.password) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: 'Password change is not available for Google sign-in accounts'
+          }
+        });
+      }
+
+      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, existingCustomer.password);
+      if (!isCurrentPasswordValid) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: 'Current password is incorrect'
+          }
+        });
+      }
+
+      const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+      updateData.password = hashedNewPassword;
+    }
+
     // Check if profile is being completed
-    const isProfileCompletion = !req.user.profile_completed && 
+    const isProfileCompletion = !existingCustomer.profile_completed &&
       gender && 
       address && 
       phoneNumber && 
@@ -158,8 +210,13 @@ router.put('/profile', async (req, res) => {
           lastName: customer.last_name,
           email: customer.email,
           profilePhoto: customer.profile_photo,
+          gender: customer.gender,
+          address: customer.address,
+          phoneNumber: customer.phone_number,
+          dateOfBirth: customer.date_of_birth,
           role: customer.role,
           verified: customer.verified,
+          profile_completed: customer.profile_completed,
           updatedAt: customer.updated_at
         }
       }
