@@ -9,6 +9,7 @@ const { authenticateToken } = require('../middleware/auth');
 const emailService = require('../utils/email');
 const { generateOTP, isOTPExpired, generateOTPExpiry, isValidOTP } = require('../utils/otp');
 const { validateCustomerSignup, validateVendorSignup, sanitizeString } = require('../utils/validation');
+const { checkEmailRegistration, getRoleLabel, normalizeEmail } = require('../utils/accountRegistration');
 
 const router = express.Router();
 
@@ -53,18 +54,14 @@ router.post('/customer/signup', async (req, res) => {
       });
     }
 
-    // Check if customer already exists
-    const { data: existingCustomer } = await supabaseAdmin
-      .from('customers')
-      .select('id')
-      .eq('email', email.toLowerCase())
-      .single();
+    // Ensure the email isn't already in use by any account type
+    const emailStatus = await checkEmailRegistration(email);
 
-    if (existingCustomer) {
+    if (emailStatus.exists) {
       return res.status(400).json({
         success: false,
         error: {
-          message: 'Customer with this email already exists'
+          message: emailStatus.message
         }
       });
     }
@@ -77,11 +74,12 @@ router.post('/customer/signup', async (req, res) => {
     const otpExpiry = generateOTPExpiry();
 
     // Create customer
+    const normalizedEmail = emailStatus.normalizedEmail;
     const customerData = {
       id: uuidv4(),
       first_name: sanitizeString(firstName),
       last_name: sanitizeString(lastName),
-      email: email.toLowerCase(),
+      email: normalizedEmail,
       password: hashedPassword,
       role: 'customer',
       verified: false,
@@ -164,10 +162,12 @@ router.post('/customer/verify-otp', async (req, res) => {
     }
 
     // Get customer
+    const normalizedEmail = normalizeEmail(email);
+
     const { data: customer, error } = await supabaseAdmin
       .from('customers')
       .select('*')
-      .eq('email', email.toLowerCase())
+      .eq('email', normalizedEmail)
       .single();
 
     if (error || !customer) {
@@ -271,13 +271,35 @@ router.post('/customer/login', async (req, res) => {
     }
 
     // Get customer
+    const normalizedEmail = normalizeEmail(email);
+
     const { data: customer, error } = await supabaseAdmin
       .from('customers')
       .select('*')
-      .eq('email', email.toLowerCase())
-      .single();
+      .eq('email', normalizedEmail)
+      .maybeSingle();
 
-    if (error || !customer) {
+    if (error && error.code !== 'PGRST116') {
+      console.error('Customer lookup error:', error);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Internal server error'
+        }
+      });
+    }
+
+    if (!customer) {
+      const emailStatus = await checkEmailRegistration(normalizedEmail);
+      if (emailStatus.exists && emailStatus.role !== 'customer') {
+        return res.status(403).json({
+          success: false,
+          error: {
+            message: emailStatus.message || 'This email is already registered under a different account type. Please use another email.'
+          }
+        });
+      }
+
       return res.status(401).json({
         success: false,
         error: {
@@ -369,10 +391,12 @@ router.post('/customer/resend-otp', async (req, res) => {
     }
 
     // Get customer
+    const normalizedEmail = normalizeEmail(email);
+
     const { data: customer, error } = await supabaseAdmin
       .from('customers')
       .select('*')
-      .eq('email', email.toLowerCase())
+      .eq('email', normalizedEmail)
       .single();
 
     if (error || !customer) {
@@ -481,17 +505,14 @@ router.post('/vendor/signup', async (req, res) => {
     }
 
     // Check if vendor already exists
-    const { data: existingVendor } = await supabaseAdmin
-      .from('vendors')
-      .select('id')
-      .eq('business_email', businessEmail.toLowerCase())
-      .single();
+    // Ensure the email isn't already in use by any account type
+    const emailStatus = await checkEmailRegistration(businessEmail);
 
-    if (existingVendor) {
+    if (emailStatus.exists) {
       return res.status(400).json({
         success: false,
         error: {
-          message: 'Vendor with this email already exists'
+          message: emailStatus.message
         }
       });
     }
@@ -507,7 +528,7 @@ router.post('/vendor/signup', async (req, res) => {
     const vendorData = {
       id: uuidv4(),
       business_name: sanitizeString(businessName),
-      business_email: businessEmail.toLowerCase(),
+      business_email: emailStatus.normalizedEmail,
       business_phone: businessPhone,
       business_website: businessWebsite || null,
       business_address: sanitizeString(businessAddress),
@@ -602,10 +623,12 @@ router.post('/vendor/verify-otp', async (req, res) => {
     }
 
     // Get vendor
+    const normalizedEmail = normalizeEmail(email);
+
     const { data: vendor, error } = await supabaseAdmin
       .from('vendors')
       .select('*')
-      .eq('business_email', email.toLowerCase())
+      .eq('business_email', normalizedEmail)
       .single();
 
     if (error || !vendor) {
@@ -709,13 +732,35 @@ router.post('/vendor/login', async (req, res) => {
     }
 
     // Get vendor
+    const normalizedEmail = normalizeEmail(email);
+
     const { data: vendor, error } = await supabaseAdmin
       .from('vendors')
       .select('*')
-      .eq('business_email', email.toLowerCase())
-      .single();
+      .eq('business_email', normalizedEmail)
+      .maybeSingle();
 
-    if (error || !vendor) {
+    if (error && error.code !== 'PGRST116') {
+      console.error('Vendor lookup error:', error);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Internal server error'
+        }
+      });
+    }
+
+    if (!vendor) {
+      const emailStatus = await checkEmailRegistration(normalizedEmail);
+      if (emailStatus.exists && emailStatus.role !== 'vendor') {
+        return res.status(403).json({
+          success: false,
+          error: {
+            message: emailStatus.message || 'This email is already registered under a different account type. Please use another email.'
+          }
+        });
+      }
+
       return res.status(401).json({
         success: false,
         error: {
@@ -821,10 +866,12 @@ router.post('/vendor/resend-otp', async (req, res) => {
     }
 
     // Get vendor
+    const normalizedEmail = normalizeEmail(email);
+
     const { data: vendor, error } = await supabaseAdmin
       .from('vendors')
       .select('*')
-      .eq('business_email', email.toLowerCase())
+      .eq('business_email', normalizedEmail)
       .single();
 
     if (error || !vendor) {
@@ -990,6 +1037,47 @@ router.get('/me', authenticateToken, async (req, res) => {
       success: false,
       error: {
         message: 'Internal server error'
+      }
+    });
+  }
+});
+
+/**
+ * @route   GET /api/auth/email-status
+ * @desc    Check if an email is already registered
+ * @access  Public
+ */
+router.get('/email-status', async (req, res) => {
+  try {
+    const { email } = req.query;
+
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Email is required'
+        }
+      });
+    }
+
+    const status = await checkEmailRegistration(email);
+
+    res.json({
+      success: true,
+      data: {
+        normalizedEmail: status.normalizedEmail,
+        isRegistered: status.exists,
+        registeredAs: status.role,
+        message: status.message,
+        label: status.role ? getRoleLabel(status.role) : null
+      }
+    });
+  } catch (error) {
+    console.error('Email status check error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Failed to check email status'
       }
     });
   }

@@ -5,6 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 
 const { supabaseAdmin } = require('../config/supabase');
 const emailService = require('../utils/email');
+const { checkEmailRegistration, normalizeEmail } = require('../utils/accountRegistration');
 
 const router = express.Router();
 
@@ -39,14 +40,28 @@ router.get('/google/callback',
     try {
       const { id, displayName, emails, photos } = req.user;
       const email = emails[0].value;
+      const normalizedEmail = normalizeEmail(email);
       const photo = photos[0]?.value || null;
+
+      const emailStatus = await checkEmailRegistration(normalizedEmail);
+
+      if (emailStatus.exists && emailStatus.role !== 'customer') {
+        const frontendBase = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
+        const redirectUrl = new URL('/customer/login', frontendBase);
+        redirectUrl.searchParams.set('error', 'account_type_conflict');
+        redirectUrl.searchParams.set(
+          'message',
+          emailStatus.message || 'This email is already registered under a different account type. Please use another email.'
+        );
+        return res.redirect(redirectUrl.toString());
+      }
 
       // Check if customer already exists
       const { data: existingCustomer } = await supabaseAdmin
         .from('customers')
         .select('*')
-        .eq('email', email.toLowerCase())
-        .single();
+        .eq('email', normalizedEmail)
+        .maybeSingle();
 
       let customer;
       let isNewUser = false;
@@ -81,7 +96,7 @@ router.get('/google/callback',
           id: uuidv4(),
           first_name: firstName,
           last_name: lastName,
-          email: email.toLowerCase(),
+          email: normalizedEmail,
           google_id: id,
           profile_photo: photo,
           role: 'customer',
@@ -106,7 +121,7 @@ router.get('/google/callback',
 
         // Send welcome email for new users
         try {
-          await emailService.sendWelcomeEmail(email, displayName, 'customer');
+          await emailService.sendWelcomeEmail(normalizedEmail, displayName, 'customer');
         } catch (emailError) {
           console.error('Error sending welcome email:', emailError);
         }
@@ -156,12 +171,25 @@ router.post('/google/verify-token', async (req, res) => {
       picture: 'profile_picture_url'
     };
 
+    const normalizedEmail = normalizeEmail(userInfo.email);
+
+    const emailStatus = await checkEmailRegistration(normalizedEmail);
+
+    if (emailStatus.exists && emailStatus.role !== 'customer') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          message: emailStatus.message || 'This email is already registered under a different account type. Please use another email.'
+        }
+      });
+    }
+
     // Check if customer exists
     const { data: existingCustomer } = await supabaseAdmin
       .from('customers')
       .select('*')
-      .eq('email', userInfo.email.toLowerCase())
-      .single();
+      .eq('email', normalizedEmail)
+      .maybeSingle();
 
     let customer;
     let isNewUser = false;
@@ -178,7 +206,7 @@ router.post('/google/verify-token', async (req, res) => {
         id: uuidv4(),
         first_name: firstName,
         last_name: lastName,
-        email: userInfo.email.toLowerCase(),
+        email: normalizedEmail,
         google_id: userInfo.id,
         profile_photo: userInfo.picture,
         role: 'customer',
