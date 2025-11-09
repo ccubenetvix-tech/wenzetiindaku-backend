@@ -25,7 +25,14 @@ const generateToken = (userId, role) => {
  * @desc    Google OAuth login
  * @access  Public
  */
+const defaultFrontendBase =
+  process.env.FRONTEND_URL ||
+  process.env.CLIENT_URL ||
+  process.env.FALLBACK_FRONTEND_URL ||
+  'http://localhost:5173';
+
 const allowedOrigins = [
+  defaultFrontendBase,
   process.env.FRONTEND_URL,
   process.env.CLIENT_URL,
   process.env.FALLBACK_FRONTEND_URL,
@@ -73,14 +80,12 @@ const resolveFrontendBase = (fallbackBase, ...candidates) => {
 };
 
 router.get('/google', (req, res, next) => {
-  const fallbackBase = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
-
   const queryRedirect = req.query.redirect;
   const headerOrigin = req.get('Origin');
   const headerReferer = req.get('Referer');
 
   const redirectBase = resolveFrontendBase(
-    fallbackBase,
+    defaultFrontendBase,
     queryRedirect,
     headerOrigin,
     headerReferer
@@ -105,13 +110,13 @@ router.get('/google', (req, res, next) => {
 router.get('/google/callback', 
   passport.authenticate('google', { session: false }),
   async (req, res) => {
-    try {
-      const statePayload = decodeState(req.query.state);
-      const frontendBase = resolveFrontendBase(
-        process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173',
-        statePayload?.redirectBase
-      );
+    const statePayload = decodeState(req.query.state);
+    const frontendBase = resolveFrontendBase(
+      defaultFrontendBase,
+      statePayload?.redirectBase
+    );
 
+    try {
       const { id, displayName, emails, photos } = req.user;
       const email = emails[0].value;
       const normalizedEmail = normalizeEmail(email);
@@ -120,7 +125,6 @@ router.get('/google/callback',
       const emailStatus = await checkEmailRegistration(normalizedEmail);
 
       if (emailStatus.exists && emailStatus.role !== 'customer') {
-        const frontendBase = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
         const redirectUrl = new URL('/customer/login', frontendBase);
         redirectUrl.searchParams.set('error', 'account_type_conflict');
         redirectUrl.searchParams.set(
@@ -212,11 +216,6 @@ router.get('/google/callback',
       res.redirect(redirectUrl.toString());
     } catch (error) {
       console.error('Google OAuth callback error:', error);
-      const statePayload = decodeState(req.query.state);
-      const frontendBase = resolveFrontendBase(
-        process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173',
-        statePayload?.redirectBase
-      );
       const redirectUrl = new URL('/customer/login', frontendBase);
       redirectUrl.searchParams.set('error', 'oauth_failed');
       redirectUrl.searchParams.set('message', 'Google authentication failed. Please try again.');
