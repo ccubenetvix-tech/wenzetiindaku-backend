@@ -1,6 +1,102 @@
 const express = require('express');
+const { v4: uuidv4 } = require('uuid');
 const { supabaseAdmin } = require('../config/supabase');
 const { authenticateToken, protect, requireRole, requireVerification } = require('../middleware/auth');
+
+const UPLOAD_BUCKET = process.env.SUPABASE_PUBLIC_BUCKET || 'public-images';
+let bucketInitialized = false;
+
+const ensureBucketExists = async () => {
+  if (bucketInitialized) {
+    return;
+  }
+
+  const { data: bucketInfo } = await supabaseAdmin.storage.getBucket(UPLOAD_BUCKET);
+
+  if (!bucketInfo) {
+    const { error: createError } = await supabaseAdmin.storage.createBucket(UPLOAD_BUCKET, {
+      public: true,
+    });
+
+    if (createError && createError.message && createError.message !== 'Bucket already exists') {
+      throw new Error(createError.message || 'Unable to create storage bucket');
+    }
+  }
+
+  bucketInitialized = true;
+};
+
+const parseBase64Image = (fileBase64 = '') => {
+  const matches = fileBase64.match(/^data:(.*);base64,(.*)$/);
+  const mimeType = matches ? matches[1] : 'image/jpeg';
+  const base64Payload = matches ? matches[2] : fileBase64;
+
+  if (!base64Payload) {
+    throw new Error('Invalid image payload');
+  }
+
+  const buffer = Buffer.from(base64Payload, 'base64');
+  return { buffer, mimeType };
+};
+
+const buildStoragePath = (vendorId, productId, fileName = '', prefix = 'primary') => {
+  const sanitizedName = fileName.split('?')[0] || '';
+  let extension = sanitizedName.split('.').pop();
+
+  if (!extension || extension.length > 5) {
+    extension = 'jpg';
+  }
+
+  const uniqueKey = `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `products/${vendorId}/${productId}/${uniqueKey}.${extension}`;
+};
+
+const uploadProductImageFromBase64 = async ({
+  base64,
+  fileName,
+  vendorId,
+  productId,
+  prefix = 'primary',
+}) => {
+  const trimmedBase64 = (base64 || '').trim();
+  if (!trimmedBase64) {
+    throw new Error('Image data is required');
+  }
+
+  await ensureBucketExists();
+
+  const { buffer, mimeType } = parseBase64Image(trimmedBase64);
+  const storagePath = buildStoragePath(vendorId, productId, fileName, prefix);
+
+  const { error: uploadError } = await supabaseAdmin.storage
+    .from(UPLOAD_BUCKET)
+    .upload(storagePath, buffer, {
+      contentType: mimeType,
+      upsert: true,
+    });
+
+  if (uploadError) {
+    throw new Error(uploadError.message || 'Failed to upload image');
+  }
+
+  const { data: publicUrlData, error: publicUrlError } = supabaseAdmin.storage
+    .from(UPLOAD_BUCKET)
+    .getPublicUrl(storagePath);
+
+  if (publicUrlError || !publicUrlData?.publicUrl) {
+    throw new Error(publicUrlError?.message || 'Failed to resolve image URL');
+  }
+
+  return publicUrlData.publicUrl;
+};
+
+const sanitizeImageArray = (value) => (
+  Array.isArray(value)
+    ? value
+        .map((url) => (typeof url === 'string' ? url.trim() : ''))
+        .filter((url) => url.length > 0)
+    : []
+);
 
 const router = express.Router();
 
@@ -36,7 +132,7 @@ router.post('/profile/photo', protect, async (req, res) => {
 
     // Upload to Supabase Storage (public bucket)
     const { error: uploadError } = await supabaseAdmin.storage
-      .from('public-images')
+      .from(UPLOAD_BUCKET)
       .upload(path, buffer, {
         contentType: mimeType,
         upsert: true,
@@ -49,7 +145,7 @@ router.post('/profile/photo', protect, async (req, res) => {
 
     // Get public URL
     const { data: publicUrlData } = supabaseAdmin.storage
-      .from('public-images')
+      .from(UPLOAD_BUCKET)
       .getPublicUrl(path);
 
     const publicUrl = publicUrlData?.publicUrl;
@@ -101,27 +197,19 @@ router.post('/products/:productId/image', protect, async (req, res) => {
       return res.status(404).json({ success: false, error: { message: 'Product not found' } });
     }
 
-    const matches = fileBase64.match(/^data:(.*);base64,(.*)$/);
-    const mimeType = matches ? matches[1] : 'image/jpeg';
-    const base64Data = matches ? matches[2] : fileBase64;
-    const buffer = Buffer.from(base64Data, 'base64');
-    const ext = fileName.split('.').pop() || 'jpg';
-    const key = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-    const path = `products/${id}/${productId}/${key}`;
-
-    const { error: uploadError } = await supabaseAdmin.storage
-      .from('public-images')
-      .upload(path, buffer, { contentType: mimeType, upsert: true });
-
-    if (uploadError) {
+    let url;
+    try {
+      url = await uploadProductImageFromBase64({
+        base64: fileBase64,
+        fileName,
+        vendorId: id,
+        productId,
+        prefix: 'gallery',
+      });
+    } catch (uploadError) {
       console.error('Supabase upload error:', uploadError);
       return res.status(500).json({ success: false, error: { message: 'Failed to upload image' } });
     }
-
-    const { data: publicUrlData } = supabaseAdmin.storage
-      .from('public-images')
-      .getPublicUrl(path);
-    const url = publicUrlData?.publicUrl;
 
     const nextImages = Array.isArray(product.images) ? [...product.images, url] : [url];
 
@@ -499,19 +587,28 @@ router.get('/dashboard', protect, async (req, res) => {
 router.get('/products', protect, async (req, res) => {
   try {
     const { id } = req.user;
-    const { page = 1, limit = 10, status } = req.query;
+    const { page = 1, limit = 10, status, search } = req.query;
 
-    const offset = (page - 1) * limit;
+    const pageNumber = Number.parseInt(page, 10) || 1;
+    const pageSize = Number.parseInt(limit, 10) || 10;
+    const offset = (pageNumber - 1) * pageSize;
 
     let query = supabaseAdmin
       .from('products')
       .select('*')
       .eq('vendor_id', id)
       .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .range(offset, offset + pageSize - 1);
 
     if (status) {
       query = query.eq('status', status);
+    }
+
+    if (search) {
+      const term = String(search).trim();
+      if (term) {
+        query = query.or(`name.ilike.%${term}%,description.ilike.%${term}%`);
+      }
     }
 
     const { data: products, error } = await query;
@@ -531,8 +628,8 @@ router.get('/products', protect, async (req, res) => {
       data: {
         products,
         pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
+          page: pageNumber,
+          limit: pageSize,
           total: products.length
         }
       }
@@ -558,30 +655,78 @@ router.post('/products', protect, async (req, res) => {
   try {
     const { id } = req.user;
     const {
-      name, description, price, category, images, stock, status = 'active'
+      name,
+      description,
+      price,
+      category,
+      images,
+      stock,
+      status = 'active',
+      primaryImage,
+      primaryImageName,
     } = req.body;
 
     if (!name || !description || !price || !category) {
       return res.status(400).json({
         success: false,
         error: {
-          message: 'Name, description, price, and category are required'
-        }
+          message: 'Name, description, price, and category are required',
+        },
       });
     }
 
+    const parsedPrice = Number.parseFloat(price);
+    if (Number.isNaN(parsedPrice)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Invalid price provided',
+        },
+      });
+    }
+
+    const parsedStock = stock !== undefined && stock !== null
+      ? Number.parseInt(stock, 10)
+      : 0;
+    const normalizedStock = Number.isNaN(parsedStock) ? 0 : parsedStock;
+
+    const productId = uuidv4();
+    let imageUrls = sanitizeImageArray(images);
+
+    if (primaryImage) {
+      try {
+        const uploadedUrl = await uploadProductImageFromBase64({
+          base64: primaryImage,
+          fileName: primaryImageName,
+          vendorId: id,
+          productId,
+          prefix: 'primary',
+        });
+
+        imageUrls = [uploadedUrl, ...imageUrls.filter((url) => url !== uploadedUrl)];
+      } catch (uploadError) {
+        console.error('Primary image upload error:', uploadError);
+        return res.status(500).json({
+          success: false,
+          error: {
+            message: 'Failed to upload product image',
+          },
+        });
+      }
+    }
+
     const productData = {
-      id: require('uuid').v4(),
+      id: productId,
       vendor_id: id,
       name: name.trim(),
       description: description.trim(),
-      price: parseFloat(price),
+      price: parsedPrice,
       category,
-      images: images || [],
-      stock: parseInt(stock) || 0,
+      images: imageUrls,
+      stock: normalizedStock,
       status,
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
 
     const { data: product, error } = await supabaseAdmin
@@ -595,24 +740,23 @@ router.post('/products', protect, async (req, res) => {
       return res.status(500).json({
         success: false,
         error: {
-          message: 'Failed to create product'
-        }
+          message: 'Failed to create product',
+        },
       });
     }
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Product created successfully',
-      data: { product }
+      data: { product },
     });
-
   } catch (error) {
     console.error('Create product error:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: {
-        message: 'Internal server error'
-      }
+        message: 'Internal server error',
+      },
     });
   }
 });
@@ -627,13 +771,21 @@ router.put('/products/:productId', protect, async (req, res) => {
     const { id } = req.user;
     const { productId } = req.params;
     const {
-      name, description, price, category, images, stock, status
+      name,
+      description,
+      price,
+      category,
+      images,
+      stock,
+      status,
+      primaryImage,
+      primaryImageName,
     } = req.body;
 
     // Check if product belongs to vendor
     const { data: existingProduct, error: checkError } = await supabaseAdmin
       .from('products')
-      .select('id')
+      .select('id, images')
       .eq('id', productId)
       .eq('vendor_id', id)
       .single();
@@ -648,16 +800,86 @@ router.put('/products/:productId', protect, async (req, res) => {
     }
 
     const updateData = {
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
 
-    if (name) updateData.name = name.trim();
-    if (description) updateData.description = description.trim();
-    if (price) updateData.price = parseFloat(price);
-    if (category) updateData.category = category;
-    if (images) updateData.images = images;
-    if (stock !== undefined) updateData.stock = parseInt(stock);
-    if (status) updateData.status = status;
+    if (name) {
+      updateData.name = name.trim();
+    }
+
+    if (description) {
+      updateData.description = description.trim();
+    }
+
+    if (category) {
+      updateData.category = category;
+    }
+
+    if (price !== undefined && price !== null && price !== '') {
+      const parsedPrice = Number.parseFloat(price);
+      if (Number.isNaN(parsedPrice)) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: 'Invalid price provided',
+          },
+        });
+      }
+      updateData.price = parsedPrice;
+    }
+
+    if (stock !== undefined && stock !== null && stock !== '') {
+      const parsedStockUpdate = Number.parseInt(stock, 10);
+      if (Number.isNaN(parsedStockUpdate)) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: 'Invalid stock provided',
+          },
+        });
+      }
+      updateData.stock = parsedStockUpdate;
+    }
+
+    if (status) {
+      updateData.status = status;
+    }
+
+    let resolvedImages = sanitizeImageArray(existingProduct?.images);
+    let shouldUpdateImages = false;
+
+    if (Array.isArray(images)) {
+      resolvedImages = sanitizeImageArray(images);
+      shouldUpdateImages = true;
+    }
+
+    if (primaryImage) {
+      try {
+        const uploadedUrl = await uploadProductImageFromBase64({
+          base64: primaryImage,
+          fileName: primaryImageName,
+          vendorId: id,
+          productId,
+          prefix: 'primary',
+        });
+
+        const rest = resolvedImages.slice(1).filter((url) => url !== uploadedUrl);
+        resolvedImages = [uploadedUrl, ...rest];
+        shouldUpdateImages = true;
+      } catch (uploadError) {
+        console.error('Primary image upload error:', uploadError);
+        return res.status(500).json({
+          success: false,
+          error: {
+            message: 'Failed to upload product image',
+          },
+        });
+      }
+    }
+
+    if (shouldUpdateImages) {
+      updateData.images = resolvedImages;
+    }
 
     const { data: product, error } = await supabaseAdmin
       .from('products')
