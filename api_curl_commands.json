@@ -148,6 +148,14 @@
     },
     {
       "group": "Customer",
+      "name": "Place Customer Orders",
+      "method": "POST",
+      "path": "/api/customer/orders",
+      "description": "Convert the customer cart into one or more vendor orders with shipping details.",
+      "curl": "curl -X POST \"$BASE_URL/api/customer/orders\" -H 'Authorization: Bearer <JWT_TOKEN>' -H 'Content-Type: application/json' -d '{\"paymentMethod\":\"cod\",\"saveAddressToProfile\":true,\"shippingAddress\":{\"fullName\":\"Jane Doe\",\"email\":\"jane@example.com\",\"phone\":\"+260700000000\",\"street1\":\"123 Market Avenue\",\"city\":\"Lusaka\",\"state\":\"Lusaka Province\",\"postalCode\":\"10101\",\"country\":\"Zambia\"}}'"
+    },
+    {
+      "group": "Customer",
       "name": "Get Order Details",
       "method": "GET",
       "path": "/api/customer/orders/:orderId",

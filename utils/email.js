@@ -272,6 +272,242 @@ class EmailService {
       throw new Error('Failed to send vendor rejection email');
     }
   }
+
+  /**
+   * Notify vendor about a new order
+   */
+  async sendVendorNewOrderEmail({
+    vendorEmail,
+    vendorName,
+    customerName,
+    customerEmail,
+    orderId,
+    totalAmount,
+    paymentMethod,
+    shippingAddress,
+    items = []
+  }) {
+    if (!vendorEmail) {
+      return false;
+    }
+
+    try {
+      const currencyFormatter = new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2
+      });
+
+      const formattedTotal = currencyFormatter.format(Number.parseFloat(totalAmount || 0));
+      const formattedPaymentMethod = paymentMethod === 'cod' ? 'Pay on Delivery' : 'Online (Stripe)';
+
+      const itemsRows = items
+        .map(item => {
+          const itemTotal = currencyFormatter.format((Number(item.price) || 0) * (Number(item.quantity) || 0));
+          return `
+            <tr>
+              <td style="padding: 8px; border: 1px solid #e5e7eb;">${item.name}</td>
+              <td style="padding: 8px; border: 1px solid #e5e7eb; text-align: center;">${item.quantity}</td>
+              <td style="padding: 8px; border: 1px solid #e5e7eb; text-align: right;">${currencyFormatter.format(item.price || 0)}</td>
+              <td style="padding: 8px; border: 1px solid #e5e7eb; text-align: right;">${itemTotal}</td>
+            </tr>
+          `;
+        })
+        .join('');
+
+      const shippingLines = [
+        shippingAddress?.fullName,
+        shippingAddress?.street1,
+        shippingAddress?.street2,
+        [shippingAddress?.city, shippingAddress?.state, shippingAddress?.postalCode].filter(Boolean).join(', '),
+        shippingAddress?.country,
+        shippingAddress?.phone ? `Phone: ${shippingAddress.phone}` : null,
+        shippingAddress?.email ? `Email: ${shippingAddress.email}` : null
+      ]
+        .filter(Boolean)
+        .join('<br />');
+
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+          <div style="background: linear-gradient(135deg, #1e3a8a 0%, #ea580c 100%); padding: 20px 24px; color: white;">
+            <h1 style="margin: 0; font-size: 22px;">New Order ${orderId ? `#${orderId}` : ''}</h1>
+            <p style="margin: 4px 0 0; font-size: 14px;">A customer just placed a new order on Wenze Tii Ndaku marketplace.</p>
+          </div>
+
+          <div style="padding: 24px;">
+            <p style="margin: 0 0 16px; font-size: 15px; color: #111827;">
+              Hello ${vendorName || 'Vendor'},
+            </p>
+            <p style="margin: 0 0 16px; font-size: 15px; color: #374151;">
+              ${customerName || 'A customer'} has placed a new order. Please review the details below and fulfil the order promptly.
+            </p>
+
+            <div style="margin-bottom: 20px;">
+              <h3 style="margin: 0 0 8px; font-size: 16px; color: #111827;">Order summary</h3>
+              <p style="margin: 0; font-size: 14px; color: #374151;"><strong>Total:</strong> ${formattedTotal}</p>
+              <p style="margin: 4px 0 0; font-size: 14px; color: #374151;"><strong>Payment method:</strong> ${formattedPaymentMethod}</p>
+              <p style="margin: 4px 0 0; font-size: 14px; color: #374151;"><strong>Customer email:</strong> ${customerEmail || 'Not provided'}</p>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+              <h3 style="margin: 0 0 8px; font-size: 16px; color: #111827;">Shipping address</h3>
+              <p style="margin: 0; font-size: 14px; color: #374151; line-height: 1.5;">${shippingLines}</p>
+            </div>
+
+            <div style="margin-bottom: 24px;">
+              <h3 style="margin: 0 0 8px; font-size: 16px; color: #111827;">Items</h3>
+              <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                <thead>
+                  <tr style="background: #f3f4f6;">
+                    <th style="padding: 8px; border: 1px solid #e5e7eb; text-align: left;">Product</th>
+                    <th style="padding: 8px; border: 1px solid #e5e7eb; text-align: center;">Qty</th>
+                    <th style="padding: 8px; border: 1px solid #e5e7eb; text-align: right;">Unit Price</th>
+                    <th style="padding: 8px; border: 1px solid #e5e7eb; text-align: right;">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${itemsRows || '<tr><td colspan="4" style="padding: 8px; border: 1px solid #e5e7eb; text-align: center; color: #6b7280;">No item breakdown available.</td></tr>'}
+                </tbody>
+              </table>
+            </div>
+
+            <p style="margin: 0; font-size: 13px; color: #6b7280;">
+              Make sure to update the order status in your vendor dashboard as it progresses. Thank you for partnering with Wenze Tii Ndaku.
+            </p>
+          </div>
+
+          <div style="background: #f9fafb; padding: 16px 24px; text-align: center;">
+            <p style="margin: 0; font-size: 12px; color: #9ca3af;">© ${new Date().getFullYear()} Wenze Tii Ndaku. All rights reserved.</p>
+          </div>
+        </div>
+      `;
+
+      await this.transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: vendorEmail,
+        subject: `New order ${orderId ? `#${orderId}` : ''} awaiting fulfilment`,
+        html,
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Error sending vendor new order email:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Send order confirmation to customer
+   */
+  async sendCustomerOrderConfirmation({
+    customerEmail,
+    customerName,
+    orders = [],
+    paymentMethod,
+    shippingAddress
+  }) {
+    if (!customerEmail) {
+      return false;
+    }
+
+    try {
+      const currencyFormatter = new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2
+      });
+
+      const totalAmount = orders.reduce(
+        (sum, order) => sum + Number.parseFloat(order.total_amount || 0),
+        0
+      );
+
+      const shippingLines = [
+        shippingAddress?.fullName,
+        shippingAddress?.street1,
+        shippingAddress?.street2,
+        [shippingAddress?.city, shippingAddress?.state, shippingAddress?.postalCode].filter(Boolean).join(', '),
+        shippingAddress?.country,
+        shippingAddress?.phone ? `Phone: ${shippingAddress.phone}` : null
+      ]
+        .filter(Boolean)
+        .join('<br />');
+
+      const ordersList = orders
+        .map((order) => {
+          return `
+            <li style="margin-bottom: 12px;">
+              <strong>Order ${order.id}</strong><br />
+              Vendor: ${order.vendor?.business_name ?? 'Assigned vendor'}<br />
+              Status: ${(order.status || 'pending').toString()}<br />
+              Amount: ${currencyFormatter.format(Number.parseFloat(order.total_amount || 0))}
+            </li>
+          `;
+        })
+        .join('');
+
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+          <div style="background: linear-gradient(135deg, #1e3a8a 0%, #ea580c 100%); padding: 20px 24px; color: white;">
+            <h1 style="margin: 0; font-size: 22px;">Thank you for your order!</h1>
+            <p style="margin: 4px 0 0; font-size: 14px;">We're getting your items ready for delivery.</p>
+          </div>
+
+          <div style="padding: 24px;">
+            <p style="margin: 0 0 16px; font-size: 15px; color: #111827;">
+              Hi ${customerName || 'there'},
+            </p>
+            <p style="margin: 0 0 16px; font-size: 15px; color: #374151;">
+              We received your order and shared it with the respective vendor(s). You'll get updates as your items move through fulfilment.
+            </p>
+
+            <div style="margin-bottom: 20px;">
+              <h3 style="margin: 0 0 8px; font-size: 16px; color: #111827;">Order summary</h3>
+              <p style="margin: 0; font-size: 14px; color: #374151;"><strong>Total paid:</strong> ${currencyFormatter.format(totalAmount)}</p>
+              <p style="margin: 4px 0 0; font-size: 14px; color: #374151;"><strong>Payment method:</strong> ${paymentMethod === 'cod' ? 'Pay on Delivery' : 'Online (Stripe)'}</p>
+            </div>
+
+            ${
+              shippingLines
+                ? `
+            <div style="margin-bottom: 20px;">
+              <h3 style="margin: 0 0 8px; font-size: 16px; color: #111827;">Shipping to</h3>
+              <p style="margin: 0; font-size: 14px; color: #374151; line-height: 1.5;">${shippingLines}</p>
+            </div>`
+                : ''
+            }
+
+            <div style="margin-bottom: 20px;">
+              <h3 style="margin: 0 0 8px; font-size: 16px; color: #111827;">Orders included</h3>
+              <ul style="padding-left: 18px; margin: 0; color: #374151; font-size: 14px;">
+                ${ordersList}
+              </ul>
+            </div>
+
+            <p style="margin: 0; font-size: 13px; color: #6b7280;">
+              Keep an eye on your inbox for delivery updates. You can also track progress anytime from your dashboard.
+            </p>
+          </div>
+
+          <div style="background: #f9fafb; padding: 16px 24px; text-align: center;">
+            <p style="margin: 0; font-size: 12px; color: #9ca3af;">© ${new Date().getFullYear()} Wenze Tii Ndaku. All rights reserved.</p>
+          </div>
+        </div>
+      `;
+
+      await this.transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: customerEmail,
+        subject: 'Your Wenze Tii Ndaku order is on the way!',
+        html,
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Error sending customer order confirmation email:', error);
+      return false;
+    }
+  }
 }
 
 module.exports = new EmailService();

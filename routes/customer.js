@@ -1,6 +1,8 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const { v4: uuidv4 } = require('uuid');
 const { supabaseAdmin } = require('../config/supabase');
+const emailService = require('../utils/email');
 const { authenticateToken, protect, requireRole, requireVerification } = require('../middleware/auth');
 
 const router = express.Router();
@@ -224,6 +226,317 @@ router.put('/profile', async (req, res) => {
 
   } catch (error) {
     console.error('Update customer profile error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Internal server error'
+      }
+    });
+  }
+});
+
+/**
+ * @route   POST /api/customer/orders
+ * @desc    Create new orders from cart items
+ * @access  Private
+ */
+router.post('/orders', requireVerification, async (req, res) => {
+  try {
+    const customerId = req.user.id;
+    const {
+      paymentMethod,
+      shippingAddress,
+      saveAddressToProfile = false
+    } = req.body || {};
+
+    const paymentMethodMap = {
+      cod: 'cod',
+      'cash_on_delivery': 'cod',
+      cash: 'cod',
+      pod: 'cod',
+      delivery: 'cod',
+      online: 'online',
+      card: 'online',
+      stripe: 'online',
+      upi: 'online'
+    };
+
+    const normalizedPaymentMethodKey = typeof paymentMethod === 'string'
+      ? paymentMethodMap[paymentMethod.trim().toLowerCase()]
+      : null;
+
+    if (!normalizedPaymentMethodKey) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Unsupported payment method'
+        }
+      });
+    }
+
+    if (!shippingAddress || typeof shippingAddress !== 'object') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Shipping address is required'
+        }
+      });
+    }
+
+    const requiredFields = ['fullName', 'email', 'phone', 'street1', 'city', 'state', 'postalCode', 'country'];
+    for (const field of requiredFields) {
+      const value = shippingAddress[field];
+      if (typeof value !== 'string' || !value.trim()) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: `Missing or invalid shipping address field: ${field}`
+          }
+        });
+      }
+    }
+
+    const sanitizeValue = (value) => (typeof value === 'string' ? value.trim() : '');
+
+    const shippingAddressPayload = {
+      fullName: sanitizeValue(shippingAddress.fullName),
+      email: sanitizeValue(shippingAddress.email),
+      phone: sanitizeValue(shippingAddress.phone),
+      street1: sanitizeValue(shippingAddress.street1),
+      ...(shippingAddress.street2 ? { street2: sanitizeValue(shippingAddress.street2) } : {}),
+      city: sanitizeValue(shippingAddress.city),
+      state: sanitizeValue(shippingAddress.state),
+      postalCode: sanitizeValue(shippingAddress.postalCode),
+      country: sanitizeValue(shippingAddress.country),
+      ...(shippingAddress.label ? { label: sanitizeValue(shippingAddress.label) } : {}),
+      createdAt: new Date().toISOString()
+    };
+
+    const { data: cartItems, error: cartError } = await supabaseAdmin
+      .from('cart')
+      .select(`
+        id,
+        quantity,
+        product_id,
+        product:products (
+          id,
+          name,
+          price,
+          images,
+          vendor_id,
+          status,
+          stock,
+          vendor:vendors (
+            id,
+            business_name,
+            business_email
+          )
+        )
+      `)
+      .eq('customer_id', customerId);
+
+    if (cartError) {
+      console.error('Order creation cart fetch error:', cartError);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to retrieve cart items'
+        }
+      });
+    }
+
+    const validCartItems = (cartItems || []).filter((item) => item.product && item.product.vendor_id);
+
+    if (validCartItems.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Cart is empty or contains invalid items'
+        }
+      });
+    }
+
+    const itemsGroupedByVendor = validCartItems.reduce((acc, item) => {
+      const vendorId = item.product.vendor_id;
+      if (!acc[vendorId]) {
+        acc[vendorId] = [];
+      }
+      acc[vendorId].push(item);
+      return acc;
+    }, {});
+
+    const ordersCreated = [];
+    const cartItemIdsToDelete = [];
+    const emailNotifications = [];
+
+    for (const [vendorId, vendorItems] of Object.entries(itemsGroupedByVendor)) {
+      const orderId = uuidv4();
+      const vendorTotal = vendorItems.reduce((sum, item) => {
+        const price = typeof item.product.price === 'number'
+          ? item.product.price
+          : Number.parseFloat(item.product.price);
+        const safePrice = Number.isFinite(price) ? price : 0;
+        return sum + safePrice * item.quantity;
+      }, 0);
+
+      const vendorInfo = vendorItems[0]?.product?.vendor ?? null;
+      const orderPayload = {
+        id: orderId,
+        customer_id: customerId,
+        vendor_id: vendorId,
+        total_amount: Number.parseFloat(vendorTotal.toFixed(2)),
+        status: normalizedPaymentMethodKey === 'cod' ? 'pending' : 'payment_pending',
+        shipping_address: shippingAddressPayload,
+        payment_method: normalizedPaymentMethodKey,
+        payment_status: normalizedPaymentMethodKey === 'cod' ? 'pending' : 'pending'
+      };
+
+      const { data: order, error: orderInsertError } = await supabaseAdmin
+        .from('orders')
+        .insert([orderPayload])
+        .select('*')
+        .single();
+
+      if (orderInsertError || !order) {
+        console.error('Order insert error:', orderInsertError);
+        return res.status(500).json({
+          success: false,
+          error: {
+            message: 'Failed to create order'
+          }
+        });
+      }
+
+      const orderItemsPayload = vendorItems.map((item) => {
+        const price = typeof item.product.price === 'number'
+          ? item.product.price
+          : Number.parseFloat(item.product.price);
+        return {
+          id: uuidv4(),
+          order_id: orderId,
+          product_id: item.product.id,
+          quantity: item.quantity,
+          price: Number.isFinite(price) ? price : 0,
+          created_at: new Date().toISOString()
+        };
+      });
+
+      const { data: insertedItems, error: orderItemsError } = await supabaseAdmin
+        .from('order_items')
+        .insert(orderItemsPayload)
+        .select('*');
+
+      if (orderItemsError) {
+        console.error('Order items insert error:', orderItemsError);
+        await supabaseAdmin.from('orders').delete().eq('id', orderId);
+        return res.status(500).json({
+          success: false,
+          error: {
+            message: 'Failed to create order items'
+          }
+        });
+      }
+
+      ordersCreated.push({
+        ...order,
+        vendor: vendorInfo
+          ? {
+              id: vendorInfo.id,
+              business_name: vendorInfo.business_name,
+              business_email: vendorInfo.business_email
+            }
+          : null,
+        order_items: insertedItems || []
+      });
+
+      cartItemIdsToDelete.push(...vendorItems.map((item) => item.id));
+
+      const emailItems = vendorItems.map((item) => {
+        const price = typeof item.product.price === 'number'
+          ? item.product.price
+          : Number.parseFloat(item.product.price);
+        return {
+          name: item.product.name,
+          quantity: item.quantity,
+          price: Number.isFinite(price) ? price : 0
+        };
+      });
+
+      if (vendorInfo?.business_email) {
+        emailNotifications.push(
+          emailService.sendVendorNewOrderEmail({
+            vendorEmail: vendorInfo.business_email,
+            vendorName: vendorInfo.business_name,
+            customerName: shippingAddressPayload.fullName || shippingAddressPayload.name || req.user.first_name || 'Customer',
+            customerEmail: shippingAddressPayload.email || req.user.email,
+            orderId,
+            totalAmount: orderPayload.total_amount,
+            paymentMethod: orderPayload.payment_method,
+            shippingAddress: shippingAddressPayload,
+            items: emailItems
+          }).catch((error) => {
+            console.error('Failed to send vendor new order email:', error);
+          })
+        );
+      }
+    }
+
+    if (cartItemIdsToDelete.length > 0) {
+      const { error: clearCartError } = await supabaseAdmin
+        .from('cart')
+        .delete()
+        .in('id', cartItemIdsToDelete);
+
+      if (clearCartError) {
+        console.error('Failed to clear cart after order creation:', clearCartError);
+      }
+    }
+
+    if (saveAddressToProfile) {
+      const { error: updateProfileError } = await supabaseAdmin
+        .from('customers')
+        .update({
+          address: shippingAddressPayload,
+          phone_number: shippingAddressPayload.phone
+        })
+        .eq('id', customerId);
+
+      if (updateProfileError) {
+        console.error('Failed to update customer profile with new address:', updateProfileError);
+      }
+    }
+
+    if (shippingAddressPayload.email) {
+      emailNotifications.push(
+        emailService.sendCustomerOrderConfirmation({
+          customerEmail: shippingAddressPayload.email,
+          customerName: shippingAddressPayload.fullName || req.user.first_name || 'Customer',
+          orders: ordersCreated,
+          paymentMethod: normalizedPaymentMethodKey,
+          shippingAddress: shippingAddressPayload
+        }).catch((error) => {
+          console.error('Failed to send customer order confirmation email:', error);
+        })
+      );
+    }
+
+    if (emailNotifications.length > 0) {
+      await Promise.allSettled(emailNotifications);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Order placed successfully',
+      data: {
+        orders: ordersCreated,
+        payment: {
+          method: normalizedPaymentMethodKey,
+          status: normalizedPaymentMethodKey === 'cod' ? 'pending' : 'pending'
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Create customer order error:', error);
     res.status(500).json({
       success: false,
       error: {
