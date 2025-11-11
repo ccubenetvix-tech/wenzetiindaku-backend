@@ -8,7 +8,7 @@ passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
   callbackURL: process.env.NODE_ENV === 'production' 
-    ? "https://wenzetiindaku-backend.onrender.com/api/auth/google/callback"
+    ? "https://wenzetiindaku-backend-ccubenetvix-tech2481-dp5p5n4l.leapcell.dev/api/auth/google/callback"
     : "/api/auth/google/callback"
 }, async (accessToken, refreshToken, profile, done) => {
   try {
