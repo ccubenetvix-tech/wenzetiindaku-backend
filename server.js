@@ -27,6 +27,7 @@ app.use(cors({
   origin: [
     process.env.FRONTEND_URL || 'http://localhost:5173',
     'https://elegant-pothos-5c2a00.netlify.app',
+    'https://wenzetiindaku-frontend-8z159plbu-ccubenetvix-techs-projects.vercel.app/',
     'https://wenze-tii-ndaku.netlify.app',
     'https://wenzetiindaku-marketplace.netlify.app',
     'http://localhost:5173',

@@ -1,0 +1,495 @@
+{
+  "baseUrl": "http://localhost:5000",
+  "environmentNote": "Set BASE_URL to your API origin before running these commands (example: export BASE_URL=http://localhost:5000).",
+  "endpoints": [
+    {
+      "group": "General",
+      "name": "Health Check",
+      "method": "GET",
+      "path": "/health",
+      "description": "Check backend service status.",
+      "curl": "curl -X GET \"$BASE_URL/health\""
+    },
+    {
+      "group": "General",
+      "name": "Root Welcome",
+      "method": "GET",
+      "path": "/",
+      "description": "Fetch API welcome message and metadata.",
+      "curl": "curl -X GET \"$BASE_URL/\""
+    },
+    {
+      "group": "Auth",
+      "name": "Customer Signup",
+      "method": "POST",
+      "path": "/api/auth/customer/signup",
+      "description": "Register a new customer account.",
+      "curl": "curl -X POST \"$BASE_URL/api/auth/customer/signup\" -H 'Content-Type: application/json' -d '{\"firstName\":\"John\",\"lastName\":\"Doe\",\"email\":\"john@example.com\",\"password\":\"Secret123!\",\"agreeToTerms\":true}'"
+    },
+    {
+      "group": "Auth",
+      "name": "Customer Verify OTP",
+      "method": "POST",
+      "path": "/api/auth/customer/verify-otp",
+      "description": "Verify the OTP sent to a customer email during signup.",
+      "curl": "curl -X POST \"$BASE_URL/api/auth/customer/verify-otp\" -H 'Content-Type: application/json' -d '{\"email\":\"john@example.com\",\"otp\":\"123456\"}'"
+    },
+    {
+      "group": "Auth",
+      "name": "Customer Login",
+      "method": "POST",
+      "path": "/api/auth/customer/login",
+      "description": "Authenticate a customer and receive a JWT.",
+      "curl": "curl -X POST \"$BASE_URL/api/auth/customer/login\" -H 'Content-Type: application/json' -d '{\"email\":\"john@example.com\",\"password\":\"Secret123!\"}'"
+    },
+    {
+      "group": "Auth",
+      "name": "Customer Resend OTP",
+      "method": "POST",
+      "path": "/api/auth/customer/resend-otp",
+      "description": "Request a new OTP for a customer signup verification.",
+      "curl": "curl -X POST \"$BASE_URL/api/auth/customer/resend-otp\" -H 'Content-Type: application/json' -d '{\"email\":\"john@example.com\"}'"
+    },
+    {
+      "group": "Auth",
+      "name": "Vendor Signup",
+      "method": "POST",
+      "path": "/api/auth/vendor/signup",
+      "description": "Register a new vendor account.",
+      "curl": "curl -X POST \"$BASE_URL/api/auth/vendor/signup\" -H 'Content-Type: application/json' -d '{\"businessName\":\"Sample Store\",\"businessEmail\":\"store@example.com\",\"businessPhone\":\"+1234567890\",\"businessWebsite\":\"https://samplestore.com\",\"businessAddress\":\"123 Market Street\",\"city\":\"Lusaka\",\"state\":\"Lusaka Province\",\"country\":\"Zambia\",\"postalCode\":\"10101\",\"businessType\":\"Retail\",\"description\":\"We sell great products.\",\"categories\":[\"electronics\",\"fashion\"],\"password\":\"StrongPass123!\",\"agreeToTerms\":true,\"agreeToVendorTerms\":true}'"
+    },
+    {
+      "group": "Auth",
+      "name": "Vendor Verify OTP",
+      "method": "POST",
+      "path": "/api/auth/vendor/verify-otp",
+      "description": "Verify the OTP sent to a vendor email during signup.",
+      "curl": "curl -X POST \"$BASE_URL/api/auth/vendor/verify-otp\" -H 'Content-Type: application/json' -d '{\"email\":\"store@example.com\",\"otp\":\"123456\"}'"
+    },
+    {
+      "group": "Auth",
+      "name": "Vendor Login",
+      "method": "POST",
+      "path": "/api/auth/vendor/login",
+      "description": "Authenticate a vendor and receive a JWT.",
+      "curl": "curl -X POST \"$BASE_URL/api/auth/vendor/login\" -H 'Content-Type: application/json' -d '{\"email\":\"store@example.com\",\"password\":\"StrongPass123!\"}'"
+    },
+    {
+      "group": "Auth",
+      "name": "Vendor Resend OTP",
+      "method": "POST",
+      "path": "/api/auth/vendor/resend-otp",
+      "description": "Request a new OTP for a vendor signup verification.",
+      "curl": "curl -X POST \"$BASE_URL/api/auth/vendor/resend-otp\" -H 'Content-Type: application/json' -d '{\"email\":\"store@example.com\"}'"
+    },
+    {
+      "group": "Auth",
+      "name": "Current User Profile",
+      "method": "GET",
+      "path": "/api/auth/me",
+      "description": "Retrieve profile details for the authenticated user (customer or vendor).",
+      "curl": "curl -X GET \"$BASE_URL/api/auth/me\" -H 'Authorization: Bearer <JWT_TOKEN>'"
+    },
+    {
+      "group": "Auth",
+      "name": "Email Registration Status",
+      "method": "GET",
+      "path": "/api/auth/email-status",
+      "description": "Check if an email is already registered and under which role.",
+      "curl": "curl -X GET \"$BASE_URL/api/auth/email-status?email=john@example.com\""
+    },
+    {
+      "group": "Google Auth",
+      "name": "Start Google OAuth",
+      "method": "GET",
+      "path": "/api/auth/google",
+      "description": "Initiate Google OAuth flow (open in browser or follow redirects).",
+      "curl": "curl -L \"$BASE_URL/api/auth/google\""
+    },
+    {
+      "group": "Google Auth",
+      "name": "Google OAuth Callback",
+      "method": "GET",
+      "path": "/api/auth/google/callback",
+      "description": "Handle Google OAuth callback with provider code and state parameters.",
+      "curl": "curl -X GET \"$BASE_URL/api/auth/google/callback?code=<GOOGLE_AUTH_CODE>&state=<OAUTH_STATE>\""
+    },
+    {
+      "group": "Google Auth",
+      "name": "Verify Google ID Token",
+      "method": "POST",
+      "path": "/api/auth/google/verify-token",
+      "description": "Exchange a Google ID token for a session in the marketplace.",
+      "curl": "curl -X POST \"$BASE_URL/api/auth/google/verify-token\" -H 'Content-Type: application/json' -d '{\"idToken\":\"<GOOGLE_ID_TOKEN>\"}'"
+    },
+    {
+      "group": "Customer",
+      "name": "Get Customer Profile",
+      "method": "GET",
+      "path": "/api/customer/profile",
+      "description": "Fetch the authenticated customer's profile.",
+      "curl": "curl -X GET \"$BASE_URL/api/customer/profile\" -H 'Authorization: Bearer <JWT_TOKEN>'"
+    },
+    {
+      "group": "Customer",
+      "name": "Update Customer Profile",
+      "method": "PUT",
+      "path": "/api/customer/profile",
+      "description": "Update customer profile details or password.",
+      "curl": "curl -X PUT \"$BASE_URL/api/customer/profile\" -H 'Authorization: Bearer <JWT_TOKEN>' -H 'Content-Type: application/json' -d '{\"firstName\":\"Jane\",\"lastName\":\"Doe\",\"gender\":\"female\",\"address\":\"456 Commerce Ave\",\"phoneNumber\":\"+260771234567\",\"dateOfBirth\":\"1995-05-10\"}'"
+    },
+    {
+      "group": "Customer",
+      "name": "List Customer Orders",
+      "method": "GET",
+      "path": "/api/customer/orders",
+      "description": "Retrieve paginated orders for the authenticated customer.",
+      "curl": "curl -X GET \"$BASE_URL/api/customer/orders?page=1&limit=10\" -H 'Authorization: Bearer <JWT_TOKEN>'"
+    },
+    {
+      "group": "Customer",
+      "name": "Get Order Details",
+      "method": "GET",
+      "path": "/api/customer/orders/:orderId",
+      "description": "Retrieve details for a specific order.",
+      "curl": "curl -X GET \"$BASE_URL/api/customer/orders/<ORDER_ID>\" -H 'Authorization: Bearer <JWT_TOKEN>'"
+    },
+    {
+      "group": "Customer",
+      "name": "List Wishlist Items",
+      "method": "GET",
+      "path": "/api/customer/wishlist",
+      "description": "Fetch wishlist items for the authenticated customer.",
+      "curl": "curl -X GET \"$BASE_URL/api/customer/wishlist\" -H 'Authorization: Bearer <JWT_TOKEN>'"
+    },
+    {
+      "group": "Customer",
+      "name": "Add Wishlist Item",
+      "method": "POST",
+      "path": "/api/customer/wishlist",
+      "description": "Add a product to the customer's wishlist.",
+      "curl": "curl -X POST \"$BASE_URL/api/customer/wishlist\" -H 'Authorization: Bearer <JWT_TOKEN>' -H 'Content-Type: application/json' -d '{\"productId\":\"<PRODUCT_ID>\"}'"
+    },
+    {
+      "group": "Customer",
+      "name": "Remove Wishlist Item",
+      "method": "DELETE",
+      "path": "/api/customer/wishlist/:productId",
+      "description": "Remove a product from the customer's wishlist.",
+      "curl": "curl -X DELETE \"$BASE_URL/api/customer/wishlist/<PRODUCT_ID>\" -H 'Authorization: Bearer <JWT_TOKEN>'"
+    },
+    {
+      "group": "Customer",
+      "name": "Delete Customer Account",
+      "method": "DELETE",
+      "path": "/api/customer/delete-account",
+      "description": "Permanently delete the authenticated customer's account.",
+      "curl": "curl -X DELETE \"$BASE_URL/api/customer/delete-account\" -H 'Authorization: Bearer <JWT_TOKEN>' -H 'Content-Type: application/json' -d '{\"password\":\"Secret123!\"}'"
+    },
+    {
+      "group": "Customer",
+      "name": "Fix Registration Method",
+      "method": "POST",
+      "path": "/api/customer/fix-registration-method",
+      "description": "Repair registration metadata for accounts migrated from Google sign-in.",
+      "curl": "curl -X POST \"$BASE_URL/api/customer/fix-registration-method\" -H 'Authorization: Bearer <JWT_TOKEN>' -H 'Content-Type: application/json' -d '{\"email\":\"john@example.com\"}'"
+    },
+    {
+      "group": "Cart",
+      "name": "Get Cart",
+      "method": "GET",
+      "path": "/api/cart",
+      "description": "Retrieve cart items for the authenticated customer.",
+      "curl": "curl -X GET \"$BASE_URL/api/cart\" -H 'Authorization: Bearer <JWT_TOKEN>'"
+    },
+    {
+      "group": "Cart",
+      "name": "Add Cart Item",
+      "method": "POST",
+      "path": "/api/cart",
+      "description": "Add a product to the cart or increase quantity if it already exists.",
+      "curl": "curl -X POST \"$BASE_URL/api/cart\" -H 'Authorization: Bearer <JWT_TOKEN>' -H 'Content-Type: application/json' -d '{\"productId\":\"<PRODUCT_ID>\",\"quantity\":1}'"
+    },
+    {
+      "group": "Cart",
+      "name": "Update Cart Item",
+      "method": "PUT",
+      "path": "/api/cart/:itemId",
+      "description": "Update the quantity of a specific cart item.",
+      "curl": "curl -X PUT \"$BASE_URL/api/cart/<CART_ITEM_ID>\" -H 'Authorization: Bearer <JWT_TOKEN>' -H 'Content-Type: application/json' -d '{\"quantity\":2}'"
+    },
+    {
+      "group": "Cart",
+      "name": "Remove Cart Item",
+      "method": "DELETE",
+      "path": "/api/cart/:itemId",
+      "description": "Remove an item from the cart.",
+      "curl": "curl -X DELETE \"$BASE_URL/api/cart/<CART_ITEM_ID>\" -H 'Authorization: Bearer <JWT_TOKEN>'"
+    },
+    {
+      "group": "Cart",
+      "name": "Clear Cart",
+      "method": "DELETE",
+      "path": "/api/cart",
+      "description": "Remove all items from the customer's cart.",
+      "curl": "curl -X DELETE \"$BASE_URL/api/cart\" -H 'Authorization: Bearer <JWT_TOKEN>'"
+    },
+    {
+      "group": "Products",
+      "name": "List Products",
+      "method": "GET",
+      "path": "/api/products",
+      "description": "Retrieve all public products with optional filters.",
+      "curl": "curl -X GET \"$BASE_URL/api/products?category=electronics&search=phone&page=1&limit=12\""
+    },
+    {
+      "group": "Products",
+      "name": "List Vendors",
+      "method": "GET",
+      "path": "/api/products/vendors",
+      "description": "List vendors that have published products.",
+      "curl": "curl -X GET \"$BASE_URL/api/products/vendors\""
+    },
+    {
+      "group": "Products",
+      "name": "Get Vendor Catalogue",
+      "method": "GET",
+      "path": "/api/products/vendors/:vendorId",
+      "description": "Retrieve products for a specific vendor.",
+      "curl": "curl -X GET \"$BASE_URL/api/products/vendors/<VENDOR_ID>?page=1&limit=12\""
+    },
+    {
+      "group": "Products",
+      "name": "List Featured Products",
+      "method": "GET",
+      "path": "/api/products/featured",
+      "description": "Fetch featured or highlighted products.",
+      "curl": "curl -X GET \"$BASE_URL/api/products/featured\""
+    },
+    {
+      "group": "Products",
+      "name": "Get Product Details",
+      "method": "GET",
+      "path": "/api/products/:productId",
+      "description": "Retrieve the details of a single product.",
+      "curl": "curl -X GET \"$BASE_URL/api/products/<PRODUCT_ID>\""
+    },
+    {
+      "group": "Vendor",
+      "name": "Upload Vendor Profile Photo",
+      "method": "POST",
+      "path": "/api/vendor/profile/photo",
+      "description": "Upload or update the vendor profile photo using a base64 payload.",
+      "curl": "curl -X POST \"$BASE_URL/api/vendor/profile/photo\" -H 'Authorization: Bearer <JWT_TOKEN>' -H 'Content-Type: application/json' -d '{\"fileBase64\":\"data:image/jpeg;base64,<BASE64_DATA>\",\"fileName\":\"profile.jpg\"}'"
+    },
+    {
+      "group": "Vendor",
+      "name": "Upload Product Image",
+      "method": "POST",
+      "path": "/api/vendor/products/:productId/image",
+      "description": "Upload a product image in base64 format and attach it to a product.",
+      "curl": "curl -X POST \"$BASE_URL/api/vendor/products/<PRODUCT_ID>/image\" -H 'Authorization: Bearer <JWT_TOKEN>' -H 'Content-Type: application/json' -d '{\"fileBase64\":\"data:image/jpeg;base64,<BASE64_DATA>\",\"fileName\":\"product.jpg\"}'"
+    },
+    {
+      "group": "Vendor",
+      "name": "Get Vendor Profile",
+      "method": "GET",
+      "path": "/api/vendor/profile",
+      "description": "Retrieve the authenticated vendor's profile.",
+      "curl": "curl -X GET \"$BASE_URL/api/vendor/profile\" -H 'Authorization: Bearer <JWT_TOKEN>'"
+    },
+    {
+      "group": "Vendor",
+      "name": "Update Vendor Profile",
+      "method": "PUT",
+      "path": "/api/vendor/profile",
+      "description": "Update vendor business information.",
+      "curl": "curl -X PUT \"$BASE_URL/api/vendor/profile\" -H 'Authorization: Bearer <JWT_TOKEN>' -H 'Content-Type: application/json' -d '{\"businessPhone\":\"+1234567890\",\"businessWebsite\":\"https://samplestore.com\",\"businessAddress\":\"123 Market Street\",\"city\":\"Lusaka\",\"state\":\"Lusaka Province\",\"country\":\"Zambia\",\"postalCode\":\"10101\",\"description\":\"Updated description\",\"categories\":[\"electronics\",\"fashion\"],\"supportEmail\":\"support@samplestore.com\"}'"
+    },
+    {
+      "group": "Vendor",
+      "name": "Vendor Dashboard Metrics",
+      "method": "GET",
+      "path": "/api/vendor/dashboard",
+      "description": "Fetch high-level dashboard metrics for the vendor.",
+      "curl": "curl -X GET \"$BASE_URL/api/vendor/dashboard\" -H 'Authorization: Bearer <JWT_TOKEN>'"
+    },
+    {
+      "group": "Vendor",
+      "name": "List Vendor Products",
+      "method": "GET",
+      "path": "/api/vendor/products",
+      "description": "List products owned by the authenticated vendor.",
+      "curl": "curl -X GET \"$BASE_URL/api/vendor/products?page=1&limit=20&status=active\" -H 'Authorization: Bearer <JWT_TOKEN>'"
+    },
+    {
+      "group": "Vendor",
+      "name": "Create Product",
+      "method": "POST",
+      "path": "/api/vendor/products",
+      "description": "Create a new product owned by the vendor.",
+      "curl": "curl -X POST \"$BASE_URL/api/vendor/products\" -H 'Authorization: Bearer <JWT_TOKEN>' -H 'Content-Type: application/json' -d '{\"name\":\"Sample Product\",\"description\":\"Great item\",\"price\":199.99,\"category\":\"electronics\",\"images\":[\"https://example.com/image1.jpg\"],\"stock\":25,\"status\":\"active\"}'"
+    },
+    {
+      "group": "Vendor",
+      "name": "Update Product",
+      "method": "PUT",
+      "path": "/api/vendor/products/:productId",
+      "description": "Update fields on an existing product owned by the vendor.",
+      "curl": "curl -X PUT \"$BASE_URL/api/vendor/products/<PRODUCT_ID>\" -H 'Authorization: Bearer <JWT_TOKEN>' -H 'Content-Type: application/json' -d '{\"name\":\"Updated Product\",\"price\":179.99,\"stock\":30,\"status\":\"active\"}'"
+    },
+    {
+      "group": "Vendor",
+      "name": "Delete Product",
+      "method": "DELETE",
+      "path": "/api/vendor/products/:productId",
+      "description": "Delete a product owned by the vendor.",
+      "curl": "curl -X DELETE \"$BASE_URL/api/vendor/products/<PRODUCT_ID>\" -H 'Authorization: Bearer <JWT_TOKEN>'"
+    },
+    {
+      "group": "Vendor",
+      "name": "List Vendor Orders",
+      "method": "GET",
+      "path": "/api/vendor/orders",
+      "description": "Retrieve orders that include the vendor's products.",
+      "curl": "curl -X GET \"$BASE_URL/api/vendor/orders?page=1&limit=10&status=pending\" -H 'Authorization: Bearer <JWT_TOKEN>'"
+    },
+    {
+      "group": "Vendor",
+      "name": "Update Order Status",
+      "method": "PUT",
+      "path": "/api/vendor/orders/:orderId/status",
+      "description": "Update status for an order handled by the vendor.",
+      "curl": "curl -X PUT \"$BASE_URL/api/vendor/orders/<ORDER_ID>/status\" -H 'Authorization: Bearer <JWT_TOKEN>' -H 'Content-Type: application/json' -d '{\"status\":\"shipped\",\"trackingNumber\":\"TRACK123456\"}'"
+    },
+    {
+      "group": "Vendor",
+      "name": "Delete Vendor Account",
+      "method": "DELETE",
+      "path": "/api/vendor/delete-account",
+      "description": "Permanently delete the authenticated vendor account.",
+      "curl": "curl -X DELETE \"$BASE_URL/api/vendor/delete-account\" -H 'Authorization: Bearer <JWT_TOKEN>' -H 'Content-Type: application/json' -d '{\"password\":\"StrongPass123!\",\"reason\":\"Closing business\"}'"
+    },
+    {
+      "group": "Admin",
+      "name": "Admin Login",
+      "method": "POST",
+      "path": "/api/admin/login",
+      "description": "Authenticate an admin user and receive a JWT.",
+      "curl": "curl -X POST \"$BASE_URL/api/admin/login\" -H 'Content-Type: application/json' -d '{\"email\":\"admin@example.com\",\"password\":\"AdminSecret123!\"}'"
+    },
+    {
+      "group": "Admin",
+      "name": "List Vendors",
+      "method": "GET",
+      "path": "/api/admin/vendors",
+      "description": "Retrieve a paginated list of vendors for moderation.",
+      "curl": "curl -X GET \"$BASE_URL/api/admin/vendors?page=1&limit=20&search=market\" -H 'Authorization: Bearer <ADMIN_JWT>'"
+    },
+    {
+      "group": "Admin",
+      "name": "Get Vendor Details",
+      "method": "GET",
+      "path": "/api/admin/vendors/:vendorId",
+      "description": "Fetch detailed information about a specific vendor.",
+      "curl": "curl -X GET \"$BASE_URL/api/admin/vendors/<VENDOR_ID>\" -H 'Authorization: Bearer <ADMIN_JWT>'"
+    },
+    {
+      "group": "Admin",
+      "name": "Approve Vendor",
+      "method": "PUT",
+      "path": "/api/admin/vendors/:vendorId/approve",
+      "description": "Approve a vendor application.",
+      "curl": "curl -X PUT \"$BASE_URL/api/admin/vendors/<VENDOR_ID>/approve\" -H 'Authorization: Bearer <ADMIN_JWT>'"
+    },
+    {
+      "group": "Admin",
+      "name": "Reject Vendor",
+      "method": "PUT",
+      "path": "/api/admin/vendors/:vendorId/reject",
+      "description": "Reject a vendor application with an optional reason.",
+      "curl": "curl -X PUT \"$BASE_URL/api/admin/vendors/<VENDOR_ID>/reject\" -H 'Authorization: Bearer <ADMIN_JWT>' -H 'Content-Type: application/json' -d '{\"reason\":\"Insufficient documentation\"}'"
+    },
+    {
+      "group": "Admin",
+      "name": "Admin Dashboard Metrics",
+      "method": "GET",
+      "path": "/api/admin/dashboard",
+      "description": "Fetch aggregate metrics for the admin dashboard.",
+      "curl": "curl -X GET \"$BASE_URL/api/admin/dashboard\" -H 'Authorization: Bearer <ADMIN_JWT>'"
+    },
+    {
+      "group": "Admin",
+      "name": "Update Vendor Profile",
+      "method": "PUT",
+      "path": "/api/admin/vendors/:vendorId",
+      "description": "Update vendor information as an admin.",
+      "curl": "curl -X PUT \"$BASE_URL/api/admin/vendors/<VENDOR_ID>\" -H 'Authorization: Bearer <ADMIN_JWT>' -H 'Content-Type: application/json' -d '{\"businessPhone\":\"+1234567890\",\"businessAddress\":\"123 Market Street\",\"approved\":true}'"
+    },
+    {
+      "group": "Admin",
+      "name": "Delete Vendor",
+      "method": "DELETE",
+      "path": "/api/admin/vendors/:vendorId",
+      "description": "Remove a vendor record (and optionally notify them).",
+      "curl": "curl -X DELETE \"$BASE_URL/api/admin/vendors/<VENDOR_ID>\" -H 'Authorization: Bearer <ADMIN_JWT>'"
+    },
+    {
+      "group": "Admin",
+      "name": "List Products",
+      "method": "GET",
+      "path": "/api/admin/products",
+      "description": "List products with moderation filters.",
+      "curl": "curl -X GET \"$BASE_URL/api/admin/products?page=1&limit=20&status=active\" -H 'Authorization: Bearer <ADMIN_JWT>'"
+    },
+    {
+      "group": "Admin",
+      "name": "Update Product",
+      "method": "PUT",
+      "path": "/api/admin/products/:productId",
+      "description": "Update product metadata as an admin.",
+      "curl": "curl -X PUT \"$BASE_URL/api/admin/products/<PRODUCT_ID>\" -H 'Authorization: Bearer <ADMIN_JWT>' -H 'Content-Type: application/json' -d '{\"status\":\"active\",\"price\":159.99}'"
+    },
+    {
+      "group": "Admin",
+      "name": "Delete Product",
+      "method": "DELETE",
+      "path": "/api/admin/products/:productId",
+      "description": "Remove a product from the catalog.",
+      "curl": "curl -X DELETE \"$BASE_URL/api/admin/products/<PRODUCT_ID>\" -H 'Authorization: Bearer <ADMIN_JWT>'"
+    },
+    {
+      "group": "Admin",
+      "name": "Toggle Product Red Mark",
+      "method": "PUT",
+      "path": "/api/admin/products/:productId/red-mark",
+      "description": "Toggle the red-flag status on a product for review.",
+      "curl": "curl -X PUT \"$BASE_URL/api/admin/products/<PRODUCT_ID>/red-mark\" -H 'Authorization: Bearer <ADMIN_JWT>' -H 'Content-Type: application/json' -d '{\"redMarked\":true,\"reason\":\"Potential policy issue\"}'"
+    },
+    {
+      "group": "Admin",
+      "name": "List Customers",
+      "method": "GET",
+      "path": "/api/admin/customers",
+      "description": "Retrieve customer accounts with pagination.",
+      "curl": "curl -X GET \"$BASE_URL/api/admin/customers?page=1&limit=20&search=jane\" -H 'Authorization: Bearer <ADMIN_JWT>'"
+    },
+    {
+      "group": "Admin",
+      "name": "Get Customer Details",
+      "method": "GET",
+      "path": "/api/admin/customers/:customerId",
+      "description": "View details of a specific customer account.",
+      "curl": "curl -X GET \"$BASE_URL/api/admin/customers/<CUSTOMER_ID>\" -H 'Authorization: Bearer <ADMIN_JWT>'"
+    },
+    {
+      "group": "Admin",
+      "name": "Delete Customer",
+      "method": "DELETE",
+      "path": "/api/admin/customers/:customerId",
+      "description": "Delete a customer account.",
+      "curl": "curl -X DELETE \"$BASE_URL/api/admin/customers/<CUSTOMER_ID>\" -H 'Authorization: Bearer <ADMIN_JWT>'"
+    }
+  ]
+}
+
