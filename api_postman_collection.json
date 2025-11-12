@@ -592,6 +592,34 @@
           "response": []
         },
         {
+          "name": "Cancel Order",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/customer/orders/:orderId/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "customer",
+                "orders",
+                ":orderId",
+                "cancel"
+              ]
+            },
+            "description": "Cancel an order that is still pending, confirmed, or processing."
+          },
+          "response": []
+        },
+        {
           "name": "List Wishlist Items",
           "request": {
             "method": "GET",

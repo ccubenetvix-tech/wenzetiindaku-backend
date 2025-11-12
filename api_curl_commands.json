@@ -164,6 +164,14 @@
     },
     {
       "group": "Customer",
+      "name": "Cancel Order",
+      "method": "PUT",
+      "path": "/api/customer/orders/:orderId/cancel",
+      "description": "Cancel an order that is still pending, confirmed, or processing.",
+      "curl": "curl -X PUT \"$BASE_URL/api/customer/orders/<ORDER_ID>/cancel\" -H 'Authorization: Bearer <JWT_TOKEN>'"
+    },
+    {
+      "group": "Customer",
       "name": "List Wishlist Items",
       "method": "GET",
       "path": "/api/customer/wishlist",

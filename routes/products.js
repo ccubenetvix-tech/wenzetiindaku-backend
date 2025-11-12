@@ -281,8 +281,34 @@ router.get('/featured', async (req, res) => {
 router.get('/:productId', async (req, res) => {
   try {
     const { productId } = req.params;
+    
+    // Check if user is authenticated and is the vendor
+    let isVendorOwner = false;
+    const authHeader = req.headers['authorization'];
+    if (authHeader) {
+      try {
+        const jwt = require('jsonwebtoken');
+        const token = authHeader.split(' ')[1];
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        if (decoded.role === 'vendor') {
+          // Get product to check vendor_id
+          const { data: productCheck } = await supabaseAdmin
+            .from('products')
+            .select('vendor_id')
+            .eq('id', productId)
+            .single();
+          
+          if (productCheck && productCheck.vendor_id === decoded.userId) {
+            isVendorOwner = true;
+          }
+        }
+      } catch (err) {
+        // Not authenticated or invalid token - continue as public user
+      }
+    }
 
-    const { data: product, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('products')
       .select(`
         *,
@@ -299,11 +325,17 @@ router.get('/:productId', async (req, res) => {
           verified
         )
       `)
-      .eq('id', productId)
-      .eq('status', 'active')
-      .eq('vendor.approved', true)
-      .eq('vendor.verified', true)
-      .single();
+      .eq('id', productId);
+
+    // If not vendor owner, apply public filters
+    if (!isVendorOwner) {
+      query = query
+        .eq('status', 'active')
+        .eq('vendor.approved', true)
+        .eq('vendor.verified', true);
+    }
+
+    const { data: product, error } = await query.single();
 
     if (error || !product) {
       return res.status(404).json({

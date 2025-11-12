@@ -1001,7 +1001,7 @@ router.get('/orders', protect, async (req, res) => {
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (status) {
+    if (status && status !== 'all') {
       query = query.eq('status', status);
     }
 
@@ -1060,10 +1060,22 @@ router.put('/orders/:orderId/status', protect, async (req, res) => {
       });
     }
 
-    // Check if order belongs to vendor
+    const normalizedStatus = status.toString().toLowerCase();
+    const allowedStatuses = new Set(['pending', 'confirmed', 'processing', 'shipped', 'out_for_delivery', 'delivered']);
+
+    if (!allowedStatuses.has(normalizedStatus)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Invalid order status for vendors'
+        }
+      });
+    }
+
+    // Check if order belongs to vendor and is not cancelled
     const { data: existingOrder, error: checkError } = await supabaseAdmin
       .from('orders')
-      .select('id')
+      .select('id, status')
       .eq('id', orderId)
       .eq('vendor_id', id)
       .single();
@@ -1077,10 +1089,20 @@ router.put('/orders/:orderId/status', protect, async (req, res) => {
       });
     }
 
+    // Prevent status change if order is cancelled
+    if ((existingOrder.status || '').toLowerCase() === 'cancelled') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Cannot change status of a cancelled order'
+        }
+      });
+    }
+
     const { data: order, error } = await supabaseAdmin
       .from('orders')
       .update({
-        status,
+        status: normalizedStatus,
         updated_at: new Date().toISOString()
       })
       .eq('id', orderId)

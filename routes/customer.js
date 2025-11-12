@@ -73,6 +73,8 @@ router.get('/profile', async (req, res) => {
           lastName: customer.last_name,
           email: customer.email,
           profilePhoto: customer.profile_photo,
+          phoneNumber: customer.phone_number || customer.phoneNumber || null,
+          address: customer.address || null,
           role: customer.role,
           verified: customer.verified,
           createdAt: customer.created_at,
@@ -134,7 +136,11 @@ router.put('/profile', async (req, res) => {
 
     if (firstName) updateData.first_name = firstName.trim();
     if (lastName) updateData.last_name = lastName.trim();
-    if (profilePhoto) updateData.profile_photo = profilePhoto;
+    // Always update profile photo if provided, even for Google users
+    // This ensures the user's chosen photo overrides the Google photo
+    if (profilePhoto !== undefined && profilePhoto !== null) {
+      updateData.profile_photo = profilePhoto.trim();
+    }
     if (gender) updateData.gender = gender;
     if (address) updateData.address = address.trim();
     if (phoneNumber) updateData.phone_number = phoneNumber.trim();
@@ -653,6 +659,111 @@ router.get('/orders/:orderId', requireVerification, async (req, res) => {
 });
 
 /**
+ * @route   PUT /api/customer/orders/:orderId/cancel
+ * @desc    Cancel an order before it ships
+ * @access  Private
+ */
+router.put('/orders/:orderId/cancel', requireVerification, async (req, res) => {
+  try {
+    const { id } = req.user;
+    const { orderId } = req.params;
+    const { cancellationReason } = req.body;
+
+    if (!cancellationReason || !cancellationReason.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Cancellation reason is required'
+        }
+      });
+    }
+
+    const { data: order, error } = await supabaseAdmin
+      .from('orders')
+      .select('*')
+      .eq('id', orderId)
+      .eq('customer_id', id)
+      .single();
+
+    if (error || !order) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: 'Order not found'
+        }
+      });
+    }
+
+    const currentStatus = (order.status || '').toLowerCase();
+    const cancellableStatuses = new Set(['pending', 'confirmed', 'processing', 'payment_pending']);
+
+    if (!cancellableStatuses.has(currentStatus)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'This order can no longer be cancelled'
+        }
+      });
+    }
+
+    const nextPaymentStatus = (() => {
+      if (order.payment_method === 'cod') {
+        return order.payment_status || 'pending';
+      }
+      if ((order.payment_status || '').toLowerCase() === 'paid') {
+        return 'refund_pending';
+      }
+      return order.payment_status;
+    })();
+
+    const { data: updatedOrder, error: updateError } = await supabaseAdmin
+      .from('orders')
+      .update({
+        status: 'cancelled',
+        payment_status: nextPaymentStatus,
+        cancellation_reason: cancellationReason.trim(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', orderId)
+      .eq('customer_id', id)
+      .select(`
+        *,
+        order_items (
+          *,
+          product:products (*)
+        )
+      `)
+      .single();
+
+    if (updateError || !updatedOrder) {
+      console.error('Cancel order update error:', updateError);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to cancel order'
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Order cancelled successfully',
+      data: {
+        order: updatedOrder
+      }
+    });
+  } catch (error) {
+    console.error('Customer order cancellation error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Internal server error'
+      }
+    });
+  }
+});
+
+/**
  * @route   GET /api/customer/wishlist
  * @desc    Get customer wishlist
  * @access  Private
@@ -927,6 +1038,300 @@ router.post('/fix-registration-method', async (req, res) => {
 
   } catch (error) {
     console.error('Fix registration method error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Internal server error'
+      }
+    });
+  }
+});
+
+/**
+ * @route   GET /api/customer/addresses
+ * @desc    Get all addresses for the authenticated customer
+ * @access  Private
+ */
+router.get('/addresses', async (req, res) => {
+  try {
+    const { id } = req.user;
+
+    const { data: addresses, error } = await supabaseAdmin
+      .from('customer_addresses')
+      .select('*')
+      .eq('customer_id', id)
+      .order('is_default', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching addresses:', error);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to fetch addresses'
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        addresses: addresses || []
+      }
+    });
+  } catch (error) {
+    console.error('Get addresses error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Internal server error'
+      }
+    });
+  }
+});
+
+/**
+ * @route   POST /api/customer/addresses
+ * @desc    Create a new address for the authenticated customer
+ * @access  Private
+ */
+router.post('/addresses', async (req, res) => {
+  try {
+    const { id } = req.user;
+    const {
+      label,
+      fullName,
+      email,
+      phone,
+      street1,
+      street2,
+      city,
+      state,
+      postalCode,
+      country,
+      isDefault
+    } = req.body;
+
+    // Validate required fields
+    if (!fullName || !email || !phone || !street1 || !city || !state || !postalCode || !country) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Missing required address fields'
+        }
+      });
+    }
+
+    // If this is set as default, unset other defaults
+    if (isDefault) {
+      await supabaseAdmin
+        .from('customer_addresses')
+        .update({ is_default: false })
+        .eq('customer_id', id);
+    }
+
+    const addressData = {
+      id: uuidv4(),
+      customer_id: id,
+      label: label || 'Home',
+      full_name: fullName.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
+      street1: street1.trim(),
+      street2: street2 ? street2.trim() : null,
+      city: city.trim(),
+      state: state.trim(),
+      postal_code: postalCode.trim(),
+      country: country.trim(),
+      is_default: isDefault || false,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    const { data: address, error } = await supabaseAdmin
+      .from('customer_addresses')
+      .insert([addressData])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating address:', error);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: error.code === '23505' ? 'Address with this label already exists' : 'Failed to create address'
+        }
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Address created successfully',
+      data: {
+        address
+      }
+    });
+  } catch (error) {
+    console.error('Create address error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Internal server error'
+      }
+    });
+  }
+});
+
+/**
+ * @route   PUT /api/customer/addresses/:addressId
+ * @desc    Update an address for the authenticated customer
+ * @access  Private
+ */
+router.put('/addresses/:addressId', async (req, res) => {
+  try {
+    const { id } = req.user;
+    const { addressId } = req.params;
+    const {
+      label,
+      fullName,
+      email,
+      phone,
+      street1,
+      street2,
+      city,
+      state,
+      postalCode,
+      country,
+      isDefault
+    } = req.body;
+
+    // Verify address belongs to customer
+    const { data: existingAddress, error: fetchError } = await supabaseAdmin
+      .from('customer_addresses')
+      .select('*')
+      .eq('id', addressId)
+      .eq('customer_id', id)
+      .single();
+
+    if (fetchError || !existingAddress) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: 'Address not found'
+        }
+      });
+    }
+
+    // If this is set as default, unset other defaults
+    if (isDefault) {
+      await supabaseAdmin
+        .from('customer_addresses')
+        .update({ is_default: false })
+        .eq('customer_id', id)
+        .neq('id', addressId);
+    }
+
+    const updateData = {
+      updated_at: new Date().toISOString()
+    };
+
+    if (label !== undefined) updateData.label = label;
+    if (fullName !== undefined) updateData.full_name = fullName.trim();
+    if (email !== undefined) updateData.email = email.trim();
+    if (phone !== undefined) updateData.phone = phone.trim();
+    if (street1 !== undefined) updateData.street1 = street1.trim();
+    if (street2 !== undefined) updateData.street2 = street2 ? street2.trim() : null;
+    if (city !== undefined) updateData.city = city.trim();
+    if (state !== undefined) updateData.state = state.trim();
+    if (postalCode !== undefined) updateData.postal_code = postalCode.trim();
+    if (country !== undefined) updateData.country = country.trim();
+    if (isDefault !== undefined) updateData.is_default = isDefault;
+
+    const { data: address, error } = await supabaseAdmin
+      .from('customer_addresses')
+      .update(updateData)
+      .eq('id', addressId)
+      .eq('customer_id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating address:', error);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to update address'
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Address updated successfully',
+      data: {
+        address
+      }
+    });
+  } catch (error) {
+    console.error('Update address error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Internal server error'
+      }
+    });
+  }
+});
+
+/**
+ * @route   DELETE /api/customer/addresses/:addressId
+ * @desc    Delete an address for the authenticated customer
+ * @access  Private
+ */
+router.delete('/addresses/:addressId', async (req, res) => {
+  try {
+    const { id } = req.user;
+    const { addressId } = req.params;
+
+    // Verify address belongs to customer
+    const { data: existingAddress, error: fetchError } = await supabaseAdmin
+      .from('customer_addresses')
+      .select('*')
+      .eq('id', addressId)
+      .eq('customer_id', id)
+      .single();
+
+    if (fetchError || !existingAddress) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: 'Address not found'
+        }
+      });
+    }
+
+    const { error } = await supabaseAdmin
+      .from('customer_addresses')
+      .delete()
+      .eq('id', addressId)
+      .eq('customer_id', id);
+
+    if (error) {
+      console.error('Error deleting address:', error);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to delete address'
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Address deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete address error:', error);
     res.status(500).json({
       success: false,
       error: {

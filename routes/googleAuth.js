@@ -146,14 +146,24 @@ router.get('/google/callback',
 
       if (existingCustomer) {
         // Update existing customer
+        // Only update profile_photo if it's null/empty or if it's still the Google photo
+        // This preserves manually changed profile pictures
+        const updateData = {
+          google_id: id,
+          last_login: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+
+        // Only update profile_photo if it's currently null/empty
+        // If user has manually set a photo, preserve it (don't overwrite with Google photo)
+        if (!existingCustomer.profile_photo || existingCustomer.profile_photo.trim() === '') {
+          updateData.profile_photo = photo;
+        }
+        // If profile_photo exists, preserve it - user may have manually changed it
+
         const { data: updatedCustomer, error } = await supabaseAdmin
           .from('customers')
-          .update({
-            google_id: id,
-            profile_photo: photo,
-            last_login: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          })
+          .update(updateData)
           .eq('id', existingCustomer.id)
           .select()
           .single();
@@ -279,7 +289,32 @@ router.post('/google/verify-token', async (req, res) => {
     let isNewUser = false;
 
     if (existingCustomer) {
-      customer = existingCustomer;
+      // For existing customers, preserve manually set profile photos
+      // Only update profile_photo if it's currently null/empty
+      const updateData = {
+        google_id: userInfo.id,
+        last_login: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      // Only set Google photo if profile_photo is null/empty
+      // This preserves manually changed profile pictures
+      if (!existingCustomer.profile_photo || existingCustomer.profile_photo.trim() === '') {
+        updateData.profile_photo = userInfo.picture;
+      }
+
+      const { data: updatedCustomer, error } = await supabaseAdmin
+        .from('customers')
+        .update(updateData)
+        .eq('id', existingCustomer.id)
+        .select()
+        .single();
+
+      if (!error && updatedCustomer) {
+        customer = updatedCustomer;
+      } else {
+        customer = existingCustomer;
+      }
     } else {
       // Create new customer
       const nameParts = userInfo.name.split(' ');
