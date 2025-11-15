@@ -745,6 +745,38 @@ router.put('/orders/:orderId/cancel', requireVerification, async (req, res) => {
       });
     }
 
+    // Get customer and vendor details for email notification
+    try {
+      const { data: customer } = await supabaseAdmin
+        .from('customers')
+        .select('email, first_name, last_name')
+        .eq('id', id)
+        .single();
+
+      const { data: vendor } = await supabaseAdmin
+        .from('vendors')
+        .select('business_email, business_name')
+        .eq('id', updatedOrder.vendor_id)
+        .single();
+
+      // Send cancellation email to customer
+      if (customer?.email) {
+        const emailService = require('../utils/email');
+        await emailService.sendOrderCancellationEmail({
+          customerEmail: customer.email,
+          customerName: `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Customer',
+          orderId: updatedOrder.id,
+          orderDate: updatedOrder.created_at,
+          totalAmount: updatedOrder.total_amount,
+          cancellationReason: cancellationReason.trim(),
+          vendorName: vendor?.business_name || 'Vendor'
+        });
+      }
+    } catch (emailError) {
+      console.error('Error sending cancellation email:', emailError);
+      // Don't fail the cancellation if email fails
+    }
+
     res.json({
       success: true,
       message: 'Order cancelled successfully',

@@ -389,13 +389,17 @@ router.get('/dashboard', protect, authorize('admin'), async (req, res) => {
       .from('orders')
       .select('*', { count: 'exact', head: true });
 
-    // Get total sales (sum of all order totals)
+    // Get total sales (sum of delivered/completed orders only)
     const { data: ordersData, error: salesError } = await supabaseAdmin
       .from('orders')
-      .select('total_amount')
-      .eq('status', 'completed');
+      .select('total_amount, status');
 
-    const totalSales = ordersData ? ordersData.reduce((sum, order) => sum + (order.total_amount || 0), 0) : 0;
+    const totalSales = ordersData ? ordersData.reduce((sum, order) => {
+      if (order.status === 'delivered' || order.status === 'completed') {
+        return sum + (Number(order.total_amount) || 0);
+      }
+      return sum;
+    }, 0) : 0;
 
     res.json({
       success: true,
@@ -969,6 +973,454 @@ router.delete('/customers/:customerId', protect, authorize('admin'), async (req,
 
   } catch (error) {
     console.error('Delete customer error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Internal server error'
+      }
+    });
+  }
+});
+
+/**
+ * @route   GET /api/admin/orders
+ * @desc    Get all orders with filters and pagination
+ * @access  Private (Admin only)
+ */
+router.get('/orders', protect, authorize('admin'), async (req, res) => {
+  try {
+    const { page = 1, limit = 20, status = '', search = '', dateFrom = '', dateTo = '' } = req.query;
+    const pageNumber = Number.parseInt(page, 10) || 1;
+    const pageSize = Number.parseInt(limit, 10) || 20;
+    const offset = (pageNumber - 1) * pageSize;
+
+    let query = supabaseAdmin
+      .from('orders')
+      .select(`
+        *,
+        customer:customers!inner(
+          id,
+          first_name,
+          last_name,
+          email,
+          phone_number
+        ),
+        vendor:vendors!inner(
+          id,
+          business_name,
+          business_email,
+          business_phone
+        ),
+        order_items(
+          id,
+          quantity,
+          price,
+          product:products(
+            id,
+            name,
+            images,
+            price
+          )
+        )
+      `)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + pageSize - 1);
+
+    if (status) {
+      query = query.eq('status', status);
+    }
+
+    if (search) {
+      // Search by order ID, customer name, or vendor name
+      query = query.or(`id.ilike.%${search}%,customers.first_name.ilike.%${search}%,customers.last_name.ilike.%${search}%,customers.email.ilike.%${search}%,vendors.business_name.ilike.%${search}%`);
+    }
+
+    if (dateFrom) {
+      query = query.gte('created_at', dateFrom);
+    }
+
+    if (dateTo) {
+      query = query.lte('created_at', dateTo);
+    }
+
+    const { data: orders, error, count } = await query;
+
+    if (error) {
+      console.error('Error fetching orders:', error);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to fetch orders'
+        }
+      });
+    }
+
+    // Get total count with same filters
+    let countQuery = supabaseAdmin
+      .from('orders')
+      .select('*', { count: 'exact', head: true });
+
+    if (status) {
+      countQuery = countQuery.eq('status', status);
+    }
+
+    if (search) {
+      countQuery = countQuery.or(`id.ilike.%${search}%`);
+    }
+
+    if (dateFrom) {
+      countQuery = countQuery.gte('created_at', dateFrom);
+    }
+
+    if (dateTo) {
+      countQuery = countQuery.lte('created_at', dateTo);
+    }
+
+    const { count: totalCount } = await countQuery;
+
+    // Transform orders data
+    const transformedOrders = (orders || []).map(order => ({
+      id: order.id,
+      orderId: order.id,
+      customer: {
+        id: order.customer?.id,
+        name: order.customer ? `${order.customer.first_name || ''} ${order.customer.last_name || ''}`.trim() || order.customer.email : 'Unknown',
+        email: order.customer?.email,
+        phone: order.customer?.phone_number
+      },
+      vendor: {
+        id: order.vendor?.id,
+        name: order.vendor?.business_name || 'Unknown',
+        email: order.vendor?.business_email,
+        phone: order.vendor?.business_phone
+      },
+      totalAmount: Number(order.total_amount) || 0,
+      status: order.status || 'pending',
+      paymentMethod: order.payment_method || 'N/A',
+      paymentStatus: order.payment_status || 'pending',
+      shippingAddress: order.shipping_address || null,
+      cancellationReason: order.cancellation_reason || null,
+      items: (order.order_items || []).map(item => ({
+        id: item.id,
+        productId: item.product?.id,
+        productName: item.product?.name || 'Unknown Product',
+        productImage: item.product?.images?.[0] || null,
+        quantity: Number(item.quantity) || 0,
+        price: Number(item.price) || 0,
+        subtotal: (Number(item.quantity) || 0) * (Number(item.price) || 0)
+      })),
+      itemsCount: order.order_items?.length || 0,
+      createdAt: order.created_at,
+      updatedAt: order.updated_at
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        orders: transformedOrders,
+        pagination: {
+          page: pageNumber,
+          limit: pageSize,
+          total: totalCount || 0,
+          totalPages: Math.ceil((totalCount || 0) / pageSize)
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Get admin orders error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Internal server error'
+      }
+    });
+  }
+});
+
+/**
+ * @route   GET /api/admin/orders/:orderId
+ * @desc    Get specific order details
+ * @access  Private (Admin only)
+ */
+router.get('/orders/:orderId', protect, authorize('admin'), async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    const { data: order, error } = await supabaseAdmin
+      .from('orders')
+      .select(`
+        *,
+        customer:customers!inner(
+          id,
+          first_name,
+          last_name,
+          email,
+          phone_number,
+          address
+        ),
+        vendor:vendors!inner(
+          id,
+          business_name,
+          business_email,
+          business_phone,
+          business_address,
+          city,
+          state,
+          country
+        ),
+        order_items(
+          id,
+          quantity,
+          price,
+          product:products(
+            id,
+            name,
+            description,
+            images,
+            price,
+            category
+          )
+        )
+      `)
+      .eq('id', orderId)
+      .single();
+
+    if (error || !order) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: 'Order not found'
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      data: { order }
+    });
+
+  } catch (error) {
+    console.error('Get order details error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Internal server error'
+      }
+    });
+  }
+});
+
+/**
+ * @route   PUT /api/admin/orders/:orderId/status
+ * @desc    Update order status
+ * @access  Private (Admin only)
+ */
+router.put('/orders/:orderId/status', protect, authorize('admin'), async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { status, notes } = req.body;
+
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Status is required'
+        }
+      });
+    }
+
+    const validStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'out_for_delivery', 'delivered', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Invalid status'
+        }
+      });
+    }
+
+    // Get existing order
+    const { data: existingOrder, error: fetchError } = await supabaseAdmin
+      .from('orders')
+      .select('*')
+      .eq('id', orderId)
+      .single();
+
+    if (fetchError || !existingOrder) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: 'Order not found'
+        }
+      });
+    }
+
+    // Update order status
+    const updateData = {
+      status,
+      updated_at: new Date().toISOString()
+    };
+
+    if (notes) {
+      updateData.admin_notes = notes;
+    }
+
+    const { data: updatedOrder, error: updateError } = await supabaseAdmin
+      .from('orders')
+      .update(updateData)
+      .eq('id', orderId)
+      .select(`
+        *,
+        customer:customers!inner(
+          id,
+          first_name,
+          last_name,
+          email
+        ),
+        vendor:vendors!inner(
+          id,
+          business_name,
+          business_email
+        )
+      `)
+      .single();
+
+    if (updateError) {
+      console.error('Error updating order status:', updateError);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to update order status'
+        }
+      });
+    }
+
+    // TODO: Send email notifications if needed
+
+    res.json({
+      success: true,
+      message: 'Order status updated successfully',
+      data: { order: updatedOrder }
+    });
+
+  } catch (error) {
+    console.error('Update order status error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Internal server error'
+      }
+    });
+  }
+});
+
+/**
+ * @route   PUT /api/admin/orders/:orderId/payment-status
+ * @desc    Update order payment status
+ * @access  Private (Admin only)
+ */
+router.put('/orders/:orderId/payment-status', protect, authorize('admin'), async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { paymentStatus } = req.body;
+
+    if (!paymentStatus) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Payment status is required'
+        }
+      });
+    }
+
+    const validPaymentStatuses = ['pending', 'paid', 'failed', 'refunded', 'partially_refunded'];
+    if (!validPaymentStatuses.includes(paymentStatus)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Invalid payment status'
+        }
+      });
+    }
+
+    const { data: updatedOrder, error: updateError } = await supabaseAdmin
+      .from('orders')
+      .update({
+        payment_status: paymentStatus,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', orderId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error updating payment status:', updateError);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to update payment status'
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Payment status updated successfully',
+      data: { order: updatedOrder }
+    });
+
+  } catch (error) {
+    console.error('Update payment status error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Internal server error'
+      }
+    });
+  }
+});
+
+/**
+ * @route   GET /api/admin/orders/stats
+ * @desc    Get order statistics for admin dashboard
+ * @access  Private (Admin only)
+ */
+router.get('/orders/stats', protect, authorize('admin'), async (req, res) => {
+  try {
+    // Get orders by status
+    const { data: allOrders } = await supabaseAdmin
+      .from('orders')
+      .select('status, total_amount, created_at');
+
+    const stats = {
+      total: allOrders?.length || 0,
+      pending: allOrders?.filter(o => o.status === 'pending').length || 0,
+      processing: allOrders?.filter(o => o.status === 'processing').length || 0,
+      shipped: allOrders?.filter(o => o.status === 'shipped').length || 0,
+      delivered: allOrders?.filter(o => o.status === 'delivered' || o.status === 'completed').length || 0,
+      cancelled: allOrders?.filter(o => o.status === 'cancelled').length || 0,
+      totalRevenue: allOrders?.reduce((sum, order) => {
+        if (order.status === 'delivered' || order.status === 'completed') {
+          return sum + (Number(order.total_amount) || 0);
+        }
+        return sum;
+      }, 0) || 0,
+      pendingRevenue: allOrders?.reduce((sum, order) => {
+        if (order.status !== 'cancelled' && order.status !== 'delivered' && order.status !== 'completed') {
+          return sum + (Number(order.total_amount) || 0);
+        }
+        return sum;
+      }, 0) || 0
+    };
+
+    res.json({
+      success: true,
+      data: stats
+    });
+
+  } catch (error) {
+    console.error('Get order stats error:', error);
     res.status(500).json({
       success: false,
       error: {

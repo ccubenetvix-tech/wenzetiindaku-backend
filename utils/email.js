@@ -508,6 +508,112 @@ class EmailService {
       return false;
     }
   }
+
+  /**
+   * Send order cancellation email to customer
+   */
+  async sendOrderCancellationEmail({
+    customerEmail,
+    customerName,
+    orderId,
+    orderDate,
+    totalAmount,
+    cancellationReason,
+    vendorName
+  }) {
+    if (!customerEmail) {
+      return false;
+    }
+
+    try {
+      const currencyFormatter = new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2
+      });
+
+      const formattedTotal = currencyFormatter.format(Number.parseFloat(totalAmount || 0));
+      const formattedDate = orderDate ? new Date(orderDate).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      }) : 'N/A';
+
+      const reasonMap = {
+        'changed_mind': 'Changed my mind',
+        'found_better_price': 'Found a better price elsewhere',
+        'no_longer_needed': 'No longer needed',
+        'wrong_item': 'Ordered wrong item',
+        'shipping_delay': 'Shipping takes too long',
+        'duplicate_order': 'Duplicate order',
+        'payment_issue': 'Payment issue',
+        'other': 'Other reason'
+      };
+
+      const reasonDisplay = reasonMap[cancellationReason] || cancellationReason || 'Not specified';
+
+      const html = `
+        <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+          <div style="background: linear-gradient(135deg, #1e3a8a 0%, #ea580c 100%); padding: 20px 24px; color: white;">
+            <h1 style="margin: 0; font-size: 22px;">Order Cancelled</h1>
+            <p style="margin: 4px 0 0; font-size: 14px;">Your order has been successfully cancelled.</p>
+          </div>
+
+          <div style="padding: 24px;">
+            <p style="margin: 0 0 16px; font-size: 15px; color: #111827;">
+              Hi ${customerName || 'there'},
+            </p>
+            <p style="margin: 0 0 16px; font-size: 15px; color: #374151;">
+              We've successfully cancelled your order. Your refund (if applicable) will be processed according to your payment method.
+            </p>
+
+            <div style="margin-bottom: 20px;">
+              <h3 style="margin: 0 0 8px; font-size: 16px; color: #111827;">Order Details</h3>
+              <p style="margin: 0; font-size: 14px; color: #374151;"><strong>Order ID:</strong> ${orderId || 'N/A'}</p>
+              <p style="margin: 4px 0 0; font-size: 14px; color: #374151;"><strong>Order Date:</strong> ${formattedDate}</p>
+              <p style="margin: 4px 0 0; font-size: 14px; color: #374151;"><strong>Total Amount:</strong> ${formattedTotal}</p>
+              <p style="margin: 4px 0 0; font-size: 14px; color: #374151;"><strong>Vendor:</strong> ${vendorName || 'N/A'}</p>
+            </div>
+
+            <div style="margin-bottom: 20px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 15px;">
+              <h4 style="margin: 0 0 8px; font-size: 14px; color: #dc2626;">Cancellation Reason:</h4>
+              <p style="margin: 0; font-size: 14px; color: #7f1d1d;">${reasonDisplay}</p>
+            </div>
+
+            <div style="background: #f9fafb; border-radius: 8px; padding: 16px; margin: 20px 0;">
+              <h4 style="margin: 0 0 8px; font-size: 14px; color: #111827;">What happens next?</h4>
+              <ul style="margin: 0; padding-left: 20px; color: #374151; font-size: 14px;">
+                <li>Your order has been cancelled</li>
+                <li>If you paid online, a refund will be processed within 5-10 business days</li>
+                <li>You'll receive an email confirmation once the refund is processed</li>
+                <li>If you paid on delivery, no payment was charged</li>
+              </ul>
+            </div>
+
+            <p style="margin: 0; font-size: 13px; color: #6b7280;">
+              If you have any questions about this cancellation or need assistance, please contact our support team.
+            </p>
+          </div>
+
+          <div style="background: #f9fafb; padding: 16px 24px; text-align: center;">
+            <p style="margin: 0; font-size: 12px; color: #9ca3af;">© ${new Date().getFullYear()} Wenze Tii Ndaku. All rights reserved.</p>
+          </div>
+        </div>
+      `;
+
+      await this.transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: customerEmail,
+        subject: `Your order ${orderId ? `#${orderId}` : ''} has been cancelled`,
+        html,
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Error sending order cancellation email:', error);
+      return false;
+    }
+  }
 }
 
 module.exports = new EmailService();

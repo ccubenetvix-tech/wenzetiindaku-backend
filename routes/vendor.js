@@ -121,10 +121,21 @@ router.post('/profile/photo', protect, async (req, res) => {
       });
     }
 
+    // Ensure bucket exists
+    await ensureBucketExists();
+
     // Parse base64
     const matches = fileBase64.match(/^data:(.*);base64,(.*)$/);
     const mimeType = matches ? matches[1] : 'image/jpeg';
     const base64Data = matches ? matches[2] : fileBase64;
+    
+    if (!base64Data) {
+      return res.status(400).json({
+        success: false,
+        error: { message: 'Invalid image data' }
+      });
+    }
+    
     const buffer = Buffer.from(base64Data, 'base64');
 
     const ext = fileName.split('.').pop() || 'jpg';
@@ -140,17 +151,29 @@ router.post('/profile/photo', protect, async (req, res) => {
 
     if (uploadError) {
       console.error('Supabase upload error:', uploadError);
-      return res.status(500).json({ success: false, error: { message: 'Failed to upload image' } });
+      return res.status(500).json({ 
+        success: false, 
+        error: { message: uploadError.message || 'Failed to upload image' } 
+      });
     }
 
     // Get public URL
-    const { data: publicUrlData } = supabaseAdmin.storage
+    const { data: publicUrlData, error: urlError } = supabaseAdmin.storage
       .from(UPLOAD_BUCKET)
       .getPublicUrl(path);
 
-    const publicUrl = publicUrlData?.publicUrl;
+    if (urlError || !publicUrlData?.publicUrl) {
+      console.error('Error getting public URL:', urlError);
+      return res.status(500).json({ 
+        success: false, 
+        error: { message: 'Failed to get image URL' } 
+      });
+    }
 
-    // Save to DB
+    const publicUrl = publicUrlData.publicUrl;
+
+    // Save to DB - vendors table may or may not have profile_photo column
+    // Try to update, but don't fail if column doesn't exist
     const { data: vendor, error: updateError } = await supabaseAdmin
       .from('vendors')
       .update({ profile_photo: publicUrl, updated_at: new Date().toISOString() })
@@ -160,13 +183,28 @@ router.post('/profile/photo', protect, async (req, res) => {
 
     if (updateError) {
       console.error('Error saving profile photo URL:', updateError);
-      return res.status(500).json({ success: false, error: { message: 'Failed to save image URL' } });
+      // If column doesn't exist, still return success with URL so frontend can use it
+      if (updateError.code === '42703' || updateError.message?.includes('profile_photo')) {
+        console.warn('profile_photo column may not exist in vendors table, but image uploaded successfully');
+        return res.json({ 
+          success: true, 
+          data: { url: publicUrl },
+          message: 'Image uploaded but profile_photo column may need to be added to vendors table'
+        });
+      }
+      return res.status(500).json({ 
+        success: false, 
+        error: { message: updateError.message || 'Failed to save image URL' } 
+      });
     }
 
     return res.json({ success: true, data: { url: publicUrl, vendor } });
   } catch (error) {
     console.error('Upload vendor profile photo error:', error);
-    return res.status(500).json({ success: false, error: { message: 'Internal server error' } });
+    return res.status(500).json({ 
+      success: false, 
+      error: { message: error.message || 'Internal server error' } 
+    });
   }
 });
 
@@ -305,7 +343,7 @@ router.put('/profile', protect, requireVerification, async (req, res) => {
     const {
       businessName, businessPhone, businessWebsite, businessAddress,
       city, state, country, postalCode, businessType, description, categories,
-      currentPassword, newPassword
+      profilePhoto, currentPassword, newPassword
     } = req.body;
 
     const updateData = {
@@ -323,6 +361,10 @@ router.put('/profile', protect, requireVerification, async (req, res) => {
     if (businessType) updateData.business_type = businessType.trim();
     if (description) updateData.description = description.trim();
     if (categories) updateData.categories = categories;
+    // Always update profile photo if provided
+    if (profilePhoto !== undefined && profilePhoto !== null) {
+      updateData.profile_photo = profilePhoto.trim();
+    }
 
     // Handle password change
     if (newPassword && currentPassword) {
@@ -391,6 +433,7 @@ router.put('/profile', protect, requireVerification, async (req, res) => {
           businessAddress: vendor.business_address,
           city: vendor.city,
           state: vendor.state,
+          profilePhoto: vendor.profile_photo || null,
           country: vendor.country,
           postalCode: vendor.postal_code,
           businessType: vendor.business_type,
@@ -483,7 +526,13 @@ router.get('/dashboard', protect, async (req, res) => {
     // Calculate statistics
     const totalProducts = products?.length || 0;
     const totalOrders = orders?.length || 0;
-    const totalSales = orders?.reduce((sum, order) => sum + (order.total_amount || 0), 0) || 0;
+    // Only count delivered orders for total sales
+    const totalSales = orders?.reduce((sum, order) => {
+      if (order.status === 'delivered' || order.status === 'completed') {
+        return sum + (order.total_amount || 0);
+      }
+      return sum;
+    }, 0) || 0;
     const uniqueCustomers = new Set(customers?.map(c => c.customer_id)).size || 0;
     
     console.log('Dashboard statistics:', {
@@ -511,8 +560,8 @@ router.get('/dashboard', protect, async (req, res) => {
       .order('created_at', { ascending: false })
       .limit(5);
 
-    // Get top products
-    const { data: topProducts, error: topProductsError } = await supabaseAdmin
+    // Get all products to calculate ratings and find top 3 by rating
+    const { data: allProducts, error: topProductsError } = await supabaseAdmin
       .from('products')
       .select(`
         id,
@@ -523,9 +572,46 @@ router.get('/dashboard', protect, async (req, res) => {
         images,
         created_at
       `)
-      .eq('vendor_id', id)
-      .order('created_at', { ascending: false })
-      .limit(5);
+      .eq('vendor_id', id);
+
+    // Calculate ratings for all products
+    const productsWithRatings = await Promise.all(
+      (allProducts || []).map(async (product) => {
+        // Get product rating from reviews
+        const { data: productReviews, error: reviewsError } = await supabaseAdmin
+          .from('reviews')
+          .select('rating')
+          .eq('product_id', product.id);
+
+        let averageRating = 0;
+        if (productReviews && productReviews.length > 0 && !reviewsError) {
+          const ratings = productReviews
+            .map(r => Number(r.rating))
+            .filter(r => !isNaN(r) && r > 0);
+          
+          if (ratings.length > 0) {
+            averageRating = ratings.reduce((sum, r) => sum + r, 0) / ratings.length;
+          }
+        }
+
+        return {
+          id: product.id,
+          name: product.name,
+          images: product.images || [],
+          image: (product.images && product.images.length > 0) ? product.images[0] : null,
+          price: Number(product.price) || 0,
+          rating: averageRating > 0 ? averageRating : 0,
+          stock: Number(product.stock) || 0
+        };
+      })
+    );
+
+    // Sort by rating (descending) and take top 3
+    // Only include products that have at least one review (rating > 0)
+    const sortedTopProducts = productsWithRatings
+      .filter(p => p.rating > 0)
+      .sort((a, b) => b.rating - a.rating)
+      .slice(0, 3);
 
     const dashboardData = {
       stats: {
@@ -543,16 +629,7 @@ router.get('/dashboard', protect, async (req, res) => {
         items: 1, // This would need to be calculated from order_items
         payment: 'Paid' // This would need to be determined from payment status
       })) || [],
-      topProducts: topProducts?.map(product => ({
-        id: product.id,
-        name: product.name,
-        image: (product.images && product.images.length > 0) ? product.images[0] : '/marketplace.jpeg',
-        price: product.price,
-        sales: 0, // This would need to be calculated from order_items
-        revenue: 0, // This would need to be calculated from order_items
-        rating: 4.5, // This would need to be calculated from reviews
-        stock: product.stock
-      })) || [],
+      topProducts: sortedTopProducts,
       vendor: {
         businessName: vendor.business_name,
         businessEmail: vendor.business_email,
@@ -623,14 +700,60 @@ router.get('/products', protect, async (req, res) => {
       });
     }
 
+    // Calculate ratings for each product
+    const productsWithRatings = await Promise.all(
+      (products || []).map(async (product) => {
+        // Get product rating from reviews
+        const { data: productReviews, error: reviewsError } = await supabaseAdmin
+          .from('reviews')
+          .select('rating')
+          .eq('product_id', product.id);
+
+        let averageRating = 0;
+        if (productReviews && productReviews.length > 0 && !reviewsError) {
+          const ratings = productReviews
+            .map(r => Number(r.rating))
+            .filter(r => !isNaN(r) && r > 0);
+          
+          if (ratings.length > 0) {
+            averageRating = ratings.reduce((sum, r) => sum + r, 0) / ratings.length;
+          }
+        }
+
+        return {
+          ...product,
+          rating: averageRating > 0 ? averageRating : 0
+        };
+      })
+    );
+
+    // Get total count for pagination
+    let countQuery = supabaseAdmin
+      .from('products')
+      .select('*', { count: 'exact', head: true })
+      .eq('vendor_id', id);
+
+    if (status) {
+      countQuery = countQuery.eq('status', status);
+    }
+
+    if (search) {
+      const term = String(search).trim();
+      if (term) {
+        countQuery = countQuery.or(`name.ilike.%${term}%,description.ilike.%${term}%`);
+      }
+    }
+
+    const { count: totalCount } = await countQuery;
+
     res.json({
       success: true,
       data: {
-        products,
+        products: productsWithRatings,
         pagination: {
           page: pageNumber,
           limit: pageSize,
-          total: products.length
+          total: totalCount || productsWithRatings.length
         }
       }
     });
