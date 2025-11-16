@@ -567,6 +567,73 @@ router.get('/products', protect, authorize('admin'), async (req, res) => {
     const { page = 1, limit = 10, search = '', status = '', vendor_id = '' } = req.query;
     const offset = (page - 1) * limit;
 
+    // When search is provided, fetch matching products and vendors, then filter in memory
+    if (search) {
+      let baseQuery = supabaseAdmin
+        .from('products')
+        .select(`
+          *,
+          vendor:vendors!inner(
+            id,
+            business_name,
+            business_email,
+            approved,
+            verified
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (status) {
+        baseQuery = baseQuery.eq('status', status);
+      }
+
+      if (vendor_id) {
+        baseQuery = baseQuery.eq('vendor_id', vendor_id);
+      }
+
+      const { data: allProducts, error } = await baseQuery;
+
+      if (error) {
+        console.error('Error fetching products with search:', error);
+        return res.status(500).json({
+          success: false,
+          error: {
+            message: 'Failed to fetch products'
+          }
+        });
+      }
+
+      const searchLower = String(search).toLowerCase();
+
+      const filtered = (allProducts || []).filter((product) => {
+        const name = (product.name || '').toLowerCase();
+        const vendorName = (product.vendor?.business_name || '').toLowerCase();
+        const vendorEmail = (product.vendor?.business_email || '').toLowerCase();
+
+        return (
+          name.includes(searchLower) ||
+          vendorName.includes(searchLower) ||
+          vendorEmail.includes(searchLower)
+        );
+      });
+
+      const total = filtered.length;
+      const paginated = filtered.slice(offset, offset + Number(limit));
+
+      return res.json({
+        success: true,
+        data: {
+          products: paginated,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total
+          }
+        }
+      });
+    }
+
+    // Default path (no search): use database-level pagination
     let query = supabaseAdmin
       .from('products')
       .select(`
@@ -578,13 +645,9 @@ router.get('/products', protect, authorize('admin'), async (req, res) => {
           approved,
           verified
         )
-      `)
+      `, { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
-
-    if (search) {
-      query = query.ilike('name', `%${search}%`);
-    }
 
     if (status) {
       query = query.eq('status', status);
