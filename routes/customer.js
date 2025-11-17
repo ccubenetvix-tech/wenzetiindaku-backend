@@ -1135,6 +1135,7 @@ router.post('/addresses', async (req, res) => {
       fullName,
       email,
       phone,
+      altPhone,
       street1,
       street2,
       city,
@@ -1180,6 +1181,12 @@ router.post('/addresses', async (req, res) => {
       updated_at: new Date().toISOString()
     };
 
+    // Only include alt_phone if it's provided and not empty
+    // This prevents errors if the column doesn't exist yet
+    if (altPhone && altPhone.trim()) {
+      addressData.alt_phone = altPhone.trim();
+    }
+
     const { data: address, error } = await supabaseAdmin
       .from('customer_addresses')
       .insert([addressData])
@@ -1188,10 +1195,20 @@ router.post('/addresses', async (req, res) => {
 
     if (error) {
       console.error('Error creating address:', error);
+      // Provide more detailed error messages
+      let errorMessage = 'Failed to create address';
+      if (error.code === '23505') {
+        // This could be from the unique constraint on (customer_id, label) if it still exists
+        errorMessage = 'An address with this label already exists. Please choose a different address type or contact support to remove the constraint.';
+      } else if (error.code === '42703') {
+        errorMessage = 'Database schema mismatch. Please contact support.';
+      } else if (error.message) {
+        errorMessage = `Failed to create address: ${error.message}`;
+      }
       return res.status(500).json({
         success: false,
         error: {
-          message: error.code === '23505' ? 'Address with this label already exists' : 'Failed to create address'
+          message: errorMessage
         }
       });
     }
@@ -1228,6 +1245,7 @@ router.put('/addresses/:addressId', async (req, res) => {
       fullName,
       email,
       phone,
+      altPhone,
       street1,
       street2,
       city,
@@ -1271,6 +1289,12 @@ router.put('/addresses/:addressId', async (req, res) => {
     if (fullName !== undefined) updateData.full_name = fullName.trim();
     if (email !== undefined) updateData.email = email.trim();
     if (phone !== undefined) updateData.phone = phone.trim();
+    // Only update alt_phone if provided and not empty (handles case where column might not exist)
+    if (altPhone !== undefined && altPhone && altPhone.trim()) {
+      updateData.alt_phone = altPhone.trim();
+    } else if (altPhone === null || altPhone === '') {
+      updateData.alt_phone = null;
+    }
     if (street1 !== undefined) updateData.street1 = street1.trim();
     if (street2 !== undefined) updateData.street2 = street2 ? street2.trim() : null;
     if (city !== undefined) updateData.city = city.trim();
@@ -1364,6 +1388,80 @@ router.delete('/addresses/:addressId', async (req, res) => {
     });
   } catch (error) {
     console.error('Delete address error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Internal server error'
+      }
+    });
+  }
+});
+
+/**
+ * @route   PUT /api/customer/addresses/:addressId/set-default
+ * @desc    Set an address as default for the authenticated customer
+ * @access  Private
+ */
+router.put('/addresses/:addressId/set-default', async (req, res) => {
+  try {
+    const { id } = req.user;
+    const { addressId } = req.params;
+
+    // Verify address belongs to customer
+    const { data: existingAddress, error: fetchError } = await supabaseAdmin
+      .from('customer_addresses')
+      .select('*')
+      .eq('id', addressId)
+      .eq('customer_id', id)
+      .single();
+
+    if (fetchError || !existingAddress) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: 'Address not found'
+        }
+      });
+    }
+
+    // Unset all other default addresses for this customer
+    await supabaseAdmin
+      .from('customer_addresses')
+      .update({ is_default: false })
+      .eq('customer_id', id)
+      .neq('id', addressId);
+
+    // Set this address as default
+    const { data: address, error } = await supabaseAdmin
+      .from('customer_addresses')
+      .update({ 
+        is_default: true,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', addressId)
+      .eq('customer_id', id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error setting default address:', error);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to set default address'
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Default address updated successfully',
+      data: {
+        address
+      }
+    });
+  } catch (error) {
+    console.error('Set default address error:', error);
     res.status(500).json({
       success: false,
       error: {
