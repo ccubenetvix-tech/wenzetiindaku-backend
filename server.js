@@ -24,7 +24,24 @@ const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 app.set('trust proxy', 1);
+
 // CORS configuration (must be BEFORE any middleware that may terminate the request)
+=======
+// Security middleware
+app.use(helmet());
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use(limiter);
+
+// CORS configuration
+
 app.use(cors({
   origin: [
     process.env.FRONTEND_URL || 'http://localhost:5173',
