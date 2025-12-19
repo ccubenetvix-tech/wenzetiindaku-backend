@@ -9,9 +9,7 @@ const { checkEmailRegistration, normalizeEmail } = require('../utils/accountRegi
 
 const router = express.Router();
 
-/**
- * Generate JWT token
- */
+
 const generateToken = (userId, role) => {
   return jwt.sign(
     { userId, role },
@@ -107,7 +105,7 @@ router.get('/google', (req, res, next) => {
  * @desc    Google OAuth callback
  * @access  Public
  */
-router.get('/google/callback', 
+router.get('/google/callback',
   passport.authenticate('google', { session: false }),
   async (req, res) => {
     const statePayload = decodeState(req.query.state);
