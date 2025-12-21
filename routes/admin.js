@@ -80,22 +80,31 @@ router.post('/login', async (req, res) => {
  */
 router.get('/vendors', protect, authorize('admin'), async (req, res) => {
   try {
-    const { page = 1, limit = 10, status } = req.query;
+    const { page = 1, limit = 10, status, search } = req.query;
     const offset = (page - 1) * limit;
 
     let query = supabaseAdmin
       .from('vendors')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
-    if (status === 'pending') {
-      query = query.eq('approved', false);
-    } else if (status === 'approved') {
-      query = query.eq('approved', true);
+    if (status) {
+      if (status === 'pending') {
+        query = query.eq('approved', false).is('rejected_at', null);
+      } else if (status === 'approved') {
+        query = query.eq('approved', true);
+      } else if (status === 'rejected') {
+        query = query.not('rejected_at', 'is', null);
+      }
     }
 
-    const { data: vendors, error } = await query;
+    if (search) {
+      const searchTerm = `%${search}%`;
+      query = query.or(`business_name.ilike.${searchTerm},business_email.ilike.${searchTerm},business_phone.ilike.${searchTerm}`);
+    }
+
+    const { data: vendors, error, count } = await query;
 
     if (error) {
       console.error('Error fetching vendors:', error);
@@ -107,15 +116,6 @@ router.get('/vendors', protect, authorize('admin'), async (req, res) => {
       });
     }
 
-    // Get total count for pagination
-    const { count: totalCount, error: countError } = await supabaseAdmin
-      .from('vendors')
-      .select('*', { count: 'exact', head: true });
-
-    if (countError) {
-      console.error('Error getting vendor count:', countError);
-    }
-
     res.json({
       success: true,
       data: {
@@ -123,8 +123,8 @@ router.get('/vendors', protect, authorize('admin'), async (req, res) => {
         pagination: {
           page: parseInt(page),
           limit: parseInt(limit),
-          total: totalCount || 0,
-          totalPages: Math.ceil((totalCount || 0) / limit)
+          total: count || 0,
+          totalPages: Math.ceil((count || 0) / limit)
         }
       }
     });
@@ -1057,7 +1057,8 @@ router.get('/orders', protect, authorize('admin'), async (req, res) => {
     const pageSize = Number.parseInt(limit, 10) || 20;
     const offset = (pageNumber - 1) * pageSize;
 
-    let query = supabaseAdmin
+    // Base query with joins
+    let baseQuery = supabaseAdmin
       .from('orders')
       .select(`
         *,
@@ -1086,109 +1087,179 @@ router.get('/orders', protect, authorize('admin'), async (req, res) => {
           )
         )
       `)
-      .order('created_at', { ascending: false })
-      .range(offset, offset + pageSize - 1);
+      .order('created_at', { ascending: false });
 
+    // Apply status and date filters at DB level first (efficiency)
     if (status) {
-      query = query.eq('status', status);
+      baseQuery = baseQuery.eq('status', status);
     }
-
-    if (search) {
-      // Search by order ID, customer name, or vendor name
-      query = query.or(`id.ilike.%${search}%,customers.first_name.ilike.%${search}%,customers.last_name.ilike.%${search}%,customers.email.ilike.%${search}%,vendors.business_name.ilike.%${search}%`);
-    }
-
     if (dateFrom) {
-      query = query.gte('created_at', dateFrom);
+      baseQuery = baseQuery.gte('created_at', dateFrom);
     }
-
     if (dateTo) {
-      query = query.lte('created_at', dateTo);
+      baseQuery = baseQuery.lte('created_at', dateTo);
     }
 
-    const { data: orders, error, count } = await query;
+    // Determine verification strategy based on search presence
+    if (search) {
+      // STRATEGY: Fetch all matching date/status, then filter in memory for search
+      // This avoids UUID casting errors when searching "Order ID" with partial text
+      const { data: allOrders, error } = await baseQuery;
 
-    if (error) {
-      console.error('Error fetching orders:', error);
-      return res.status(500).json({
-        success: false,
-        error: {
-          message: 'Failed to fetch orders'
+      if (error) {
+        console.error('Error fetching orders for search:', error);
+        return res.status(500).json({
+          success: false,
+          error: { message: 'Failed to fetch orders' }
+        });
+      }
+
+      const searchLower = String(search).toLowerCase();
+
+      // In-memory filtering
+      const filteredOrders = (allOrders || []).filter(order => {
+        const orderId = (order.id || '').toLowerCase();
+        const custFirstName = (order.customer?.first_name || '').toLowerCase();
+        const custLastName = (order.customer?.last_name || '').toLowerCase();
+        const custEmail = (order.customer?.email || '').toLowerCase();
+        const vendorName = (order.vendor?.business_name || '').toLowerCase();
+
+        return (
+          orderId.includes(searchLower) ||
+          custFirstName.includes(searchLower) ||
+          custLastName.includes(searchLower) ||
+          custEmail.includes(searchLower) ||
+          vendorName.includes(searchLower)
+        );
+      });
+
+      const totalCount = filteredOrders.length;
+      const paginatedOrders = filteredOrders.slice(offset, offset + pageSize);
+
+      // Transform data
+      const transformedOrders = paginatedOrders.map(order => ({
+        id: order.id,
+        orderId: order.id,
+        customer: {
+          id: order.customer?.id,
+          name: order.customer ? `${order.customer.first_name || ''} ${order.customer.last_name || ''}`.trim() || order.customer.email : 'Unknown',
+          email: order.customer?.email,
+          phone: order.customer?.phone_number
+        },
+        vendor: {
+          id: order.vendor?.id,
+          name: order.vendor?.business_name || 'Unknown',
+          email: order.vendor?.business_email,
+          phone: order.vendor?.business_phone
+        },
+        totalAmount: Number(order.total_amount) || 0,
+        status: order.status || 'pending',
+        paymentMethod: order.payment_method || 'N/A',
+        paymentStatus: order.payment_status || 'pending',
+        shippingAddress: order.shipping_address || null,
+        cancellationReason: order.cancellation_reason || null,
+        items: (order.order_items || []).map(item => ({
+          id: item.id,
+          productId: item.product?.id,
+          productName: item.product?.name || 'Unknown Product',
+          productImage: item.product?.images?.[0] || null,
+          quantity: Number(item.quantity) || 0,
+          price: Number(item.price) || 0,
+          subtotal: (Number(item.quantity) || 0) * (Number(item.price) || 0)
+        })),
+        itemsCount: order.order_items?.length || 0,
+        createdAt: order.created_at,
+        updatedAt: order.updated_at
+      }));
+
+      return res.json({
+        success: true,
+        data: {
+          orders: transformedOrders,
+          pagination: {
+            page: pageNumber,
+            limit: pageSize,
+            total: totalCount || 0,
+            totalPages: Math.ceil((totalCount || 0) / pageSize)
+          }
+        }
+      });
+
+    } else {
+      // DEFAULT STRATEGY: Database-level pagination (no search term)
+      // Apply pagination to query
+      baseQuery = baseQuery.range(offset, offset + pageSize - 1);
+
+      const { data: orders, error, count } = await baseQuery; // count won't be exact here naturally without extra query or config, but we deal with it below
+
+      if (error) {
+        console.error('Error fetching orders:', error);
+        return res.status(500).json({
+          success: false,
+          error: { message: 'Failed to fetch orders' }
+        });
+      }
+
+      // Get accurate count for pagination
+      let countQuery = supabaseAdmin
+        .from('orders')
+        .select('*', { count: 'exact', head: true });
+
+      if (status) countQuery = countQuery.eq('status', status);
+      if (dateFrom) countQuery = countQuery.gte('created_at', dateFrom);
+      if (dateTo) countQuery = countQuery.lte('created_at', dateTo);
+
+      const { count: totalCount } = await countQuery;
+
+      // Transform data
+      const transformedOrders = (orders || []).map(order => ({
+        id: order.id,
+        orderId: order.id,
+        customer: {
+          id: order.customer?.id,
+          name: order.customer ? `${order.customer.first_name || ''} ${order.customer.last_name || ''}`.trim() || order.customer.email : 'Unknown',
+          email: order.customer?.email,
+          phone: order.customer?.phone_number
+        },
+        vendor: {
+          id: order.vendor?.id,
+          name: order.vendor?.business_name || 'Unknown',
+          email: order.vendor?.business_email,
+          phone: order.vendor?.business_phone
+        },
+        totalAmount: Number(order.total_amount) || 0,
+        status: order.status || 'pending',
+        paymentMethod: order.payment_method || 'N/A',
+        paymentStatus: order.payment_status || 'pending',
+        shippingAddress: order.shipping_address || null,
+        cancellationReason: order.cancellation_reason || null,
+        items: (order.order_items || []).map(item => ({
+          id: item.id,
+          productId: item.product?.id,
+          productName: item.product?.name || 'Unknown Product',
+          productImage: item.product?.images?.[0] || null,
+          quantity: Number(item.quantity) || 0,
+          price: Number(item.price) || 0,
+          subtotal: (Number(item.quantity) || 0) * (Number(item.price) || 0)
+        })),
+        itemsCount: order.order_items?.length || 0,
+        createdAt: order.created_at,
+        updatedAt: order.updated_at
+      }));
+
+      res.json({
+        success: true,
+        data: {
+          orders: transformedOrders,
+          pagination: {
+            page: pageNumber,
+            limit: pageSize,
+            total: totalCount || 0,
+            totalPages: Math.ceil((totalCount || 0) / pageSize)
+          }
         }
       });
     }
-
-    // Get total count with same filters
-    let countQuery = supabaseAdmin
-      .from('orders')
-      .select('*', { count: 'exact', head: true });
-
-    if (status) {
-      countQuery = countQuery.eq('status', status);
-    }
-
-    if (search) {
-      countQuery = countQuery.or(`id.ilike.%${search}%`);
-    }
-
-    if (dateFrom) {
-      countQuery = countQuery.gte('created_at', dateFrom);
-    }
-
-    if (dateTo) {
-      countQuery = countQuery.lte('created_at', dateTo);
-    }
-
-    const { count: totalCount } = await countQuery;
-
-    // Transform orders data
-    const transformedOrders = (orders || []).map(order => ({
-      id: order.id,
-      orderId: order.id,
-      customer: {
-        id: order.customer?.id,
-        name: order.customer ? `${order.customer.first_name || ''} ${order.customer.last_name || ''}`.trim() || order.customer.email : 'Unknown',
-        email: order.customer?.email,
-        phone: order.customer?.phone_number
-      },
-      vendor: {
-        id: order.vendor?.id,
-        name: order.vendor?.business_name || 'Unknown',
-        email: order.vendor?.business_email,
-        phone: order.vendor?.business_phone
-      },
-      totalAmount: Number(order.total_amount) || 0,
-      status: order.status || 'pending',
-      paymentMethod: order.payment_method || 'N/A',
-      paymentStatus: order.payment_status || 'pending',
-      shippingAddress: order.shipping_address || null,
-      cancellationReason: order.cancellation_reason || null,
-      items: (order.order_items || []).map(item => ({
-        id: item.id,
-        productId: item.product?.id,
-        productName: item.product?.name || 'Unknown Product',
-        productImage: item.product?.images?.[0] || null,
-        quantity: Number(item.quantity) || 0,
-        price: Number(item.price) || 0,
-        subtotal: (Number(item.quantity) || 0) * (Number(item.price) || 0)
-      })),
-      itemsCount: order.order_items?.length || 0,
-      createdAt: order.created_at,
-      updatedAt: order.updated_at
-    }));
-
-    res.json({
-      success: true,
-      data: {
-        orders: transformedOrders,
-        pagination: {
-          page: pageNumber,
-          limit: pageSize,
-          total: totalCount || 0,
-          totalPages: Math.ceil((totalCount || 0) / pageSize)
-        }
-      }
-    });
 
   } catch (error) {
     console.error('Get admin orders error:', error);
@@ -1489,6 +1560,295 @@ router.get('/orders/stats', protect, authorize('admin'), async (req, res) => {
       error: {
         message: 'Internal server error'
       }
+    });
+  }
+});
+
+
+/**
+ * @route   GET /api/admin/vendors/:vendorId/revenue
+ * @desc    Get vendor revenue and performance details
+ * @access  Private (Admin only)
+ */
+router.get('/vendors/:vendorId/revenue', protect, authorize('admin'), async (req, res) => {
+  try {
+    const { vendorId } = req.params;
+    const { startDate, endDate } = req.query;
+
+    // Verify vendor exists
+    const { data: vendor, error: vendorError } = await supabaseAdmin
+      .from('vendors')
+      .select('business_name')
+      .eq('id', vendorId)
+      .single();
+
+    if (vendorError || !vendor) {
+      return res.status(404).json({
+        success: false,
+        error: { message: 'Vendor not found' }
+      });
+    }
+
+    // Get full product inventory for this vendor
+    let storeInventory = [];
+    let totalProducts = 0;
+    try {
+      const { data: inventoryData, error: inventoryError } = await supabaseAdmin
+        .from('products')
+        .select('*')
+        .eq('vendor_id', vendorId);
+
+      if (inventoryError) {
+        console.error('Error fetching inventory:', inventoryError);
+        // Don't throw, just have empty inventory
+      } else if (inventoryData) {
+        storeInventory = inventoryData.map(item => ({
+          ...item,
+          // Handle potential different column names for stock
+          quantity: item.quantity !== undefined ? item.quantity : (item.stock !== undefined ? item.stock : 0)
+        }));
+        totalProducts = storeInventory.length;
+      }
+    } catch (err) {
+      console.error('Unexpected error fetching inventory:', err);
+    }
+
+    // Build query for orders
+    let query = supabaseAdmin
+      .from('orders')
+      .select(`
+        id,
+        total_amount,
+        status,
+        created_at,
+        order_items (
+            quantity,
+            price,
+            product:products (
+                id,
+                name,
+                price,
+                images
+            )
+        )
+      `)
+      .eq('vendor_id', vendorId);
+
+    // Apply date filters if present
+    if (startDate) {
+      query = query.gte('created_at', startDate);
+    }
+    if (endDate) {
+      query = query.lte('created_at', endDate);
+    }
+
+    const { data: orders, error: ordersError } = await query;
+
+    if (ordersError) {
+      console.error('Error fetching orders:', ordersError);
+      throw ordersError;
+    }
+
+    // Calculate details
+    let totalRevenue = 0;
+    let totalSalesVolume = 0;
+    let productStats = {};
+
+    if (orders) {
+      orders.forEach(order => {
+        // Only count completed/delivered sales for revenue
+        if (order.status === 'delivered' || order.status === 'completed') {
+          const orderAmount = Number(order.total_amount) || 0;
+          totalRevenue += orderAmount;
+          totalSalesVolume += 1; // Count number of orders
+        }
+
+        // Process product breakdown
+        if (order.status === 'delivered' || order.status === 'completed') {
+          if (order.order_items && Array.isArray(order.order_items)) {
+            order.order_items.forEach(item => {
+              const productId = item.product?.id;
+              const productName = item.product?.name || 'Unknown Product';
+              const productImage = item.product?.images?.[0] || null;
+              const quantity = item.quantity || 0;
+              const price = Number(item.price) || 0;
+              const earnings = quantity * price;
+
+              if (productId) {
+                if (!productStats[productId]) {
+                  productStats[productId] = {
+                    id: productId,
+                    name: productName,
+                    image: productImage,
+                    unitsSold: 0,
+                    earnings: 0
+                  };
+                }
+                productStats[productId].unitsSold += quantity;
+                productStats[productId].earnings += earnings;
+              }
+            });
+          }
+        }
+      });
+    }
+
+    const productBreakdown = Object.values(productStats);
+
+    // Calculate Top Selling (Sort by unitsSold desc)
+    const topSelling = [...productBreakdown]
+      .sort((a, b) => b.unitsSold - a.unitsSold)
+      .slice(0, 5);
+
+    const totalProfit = totalRevenue;
+
+    // Average Gain = Total Revenue / Total Orders (Sales Volume)
+    const avgGain = totalSalesVolume > 0 ? (totalRevenue / totalSalesVolume) : 0;
+
+    res.json({
+      success: true,
+      data: {
+        vendorName: vendor.business_name,
+        totalRevenue,
+        totalSalesVolume,
+        totalProfit,
+        avgGain,
+        totalProducts,
+        productBreakdown,
+        topSelling,
+        storeInventory
+      }
+    });
+
+  } catch (error) {
+    console.error('Get vendor revenue error:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Internal server error' }
+    });
+  }
+});
+
+/**
+ * @route   GET /api/admin/customers/:customerId/orders
+ * @desc    Get customer purchase history
+ * @access  Private (Admin only)
+ */
+router.get('/customers/:customerId/orders', protect, authorize('admin'), async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    const { data: orders, error } = await supabaseAdmin
+      .from('orders')
+      .select(`
+        id,
+        created_at,
+        total_amount,
+        status,
+        order_items (
+          quantity,
+          price,
+          product:products (
+            name,
+            images,
+            vendor:vendors (
+              business_name
+            )
+          )
+        )
+      `)
+      .eq('customer_id', customerId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    // Process orders to readable format
+    const formattedOrders = orders.map(order => {
+      const items = order.order_items.map(item => ({
+        productName: item.product?.name || 'Unknown',
+        storeName: item.product?.vendor?.business_name || 'N/A',
+        quantity: item.quantity,
+        price: item.price,
+        image: item.product?.images?.[0] || null
+      }));
+
+      return {
+        id: order.id,
+        date: order.created_at,
+        totalAmount: order.total_amount,
+        status: order.status,
+        items
+      };
+    });
+
+    // Calculate total spent
+    const totalSpent = orders.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0);
+
+    res.json({
+      success: true,
+      data: {
+        totalSpent,
+        orders: formattedOrders
+      }
+    });
+
+  } catch (error) {
+    console.error('Get customer history error:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Internal server error' }
+    });
+  }
+});
+
+/**
+ * @route   GET /api/admin/customers/:customerId/reviews
+ * @desc    Get customer reviews
+ * @access  Private (Admin only)
+ */
+router.get('/customers/:customerId/reviews', protect, authorize('admin'), async (req, res) => {
+  try {
+    const { customerId } = req.params;
+
+    const { data: reviews, error } = await supabaseAdmin
+      .from('reviews')
+      .select(`
+        id,
+        rating,
+        comment,
+        created_at,
+        product:products (
+          id,
+          name,
+          images
+        ),
+        customer:customers (
+          first_name,
+          last_name,
+          email
+        )
+      `)
+      .eq('customer_id', customerId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      throw error;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        reviews
+      }
+    });
+
+  } catch (error) {
+    console.error('Get customer reviews error:', error);
+    res.status(500).json({
+      success: false,
+      error: { message: 'Internal server error' }
     });
   }
 });
