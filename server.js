@@ -30,13 +30,20 @@ app.set('trust proxy', 1);
 app.use(helmet());
 
 // Rate limiting
+// Rate limiting
+const isProd = (process.env.NODE_ENV || 'development') === 'production';
+
+// In development/local: 10,000 requests per 15 mins (effectively unlimited for dev)
+// In production: 1000 requests per 15 mins (stricter)
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: isProd ? 1000 : 10000,
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.method === 'OPTIONS', // Skip OPTIONS requests (CORS preflight)
 });
+
 app.use(limiter);
 
 // CORS configuration
@@ -66,20 +73,7 @@ app.options('*', cors());
 app.use(helmet());
 
 // Rate limiting (disabled or relaxed in development, JSON handler)
-const isProd = (process.env.NODE_ENV || 'development') === 'production';
-if (isProd) {
-  const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 1000,
-    standardHeaders: true,
-    legacyHeaders: false,
-    skip: (req) => req.method === 'OPTIONS',
-    handler: (req, res) => {
-      res.status(429).json({ error: 'Too many requests' });
-    },
-  });
-  app.use(limiter);
-}
+// Rate limiting handled above globally
 
 // Logging middleware
 app.use(morgan('combined'));
@@ -146,3 +140,21 @@ const io = initializeSocket(server);
 console.log(`🔌 WebSocket server initialized`);
 
 module.exports = { app, server, io };
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+  console.error('UNHANDLED REJECTION! 💥 Shutting down...');
+  console.error(err.name, err.message);
+  console.error(err.stack);
+  server.close(() => {
+    process.exit(1);
+  });
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION! 💥 Shutting down...');
+  console.error(err.name, err.message);
+  console.error(err.stack);
+  process.exit(1);
+});
