@@ -25,17 +25,17 @@ const RATE_LIMIT_WINDOW = 60000; // 1 minute
 function checkRateLimit(userId) {
   const now = Date.now();
   const userLimit = messageRateLimit.get(userId);
-  
+
   if (!userLimit || now > userLimit.resetTime) {
     // Reset or initialize
     messageRateLimit.set(userId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW });
     return { allowed: true };
   }
-  
+
   if (userLimit.count >= MAX_MESSAGES_PER_MINUTE) {
     return { allowed: false, resetTime: userLimit.resetTime };
   }
-  
+
   userLimit.count++;
   return { allowed: true };
 }
@@ -52,6 +52,7 @@ function initializeSocket(server) {
         'http://localhost:5173',
         'http://localhost:3000',
         'https://wenzetiindaku.vercel.app',
+        'https://www.wenzetiindaku.com/'
       ],
       credentials: true,
       methods: ['GET', 'POST']
@@ -63,14 +64,14 @@ function initializeSocket(server) {
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
-      
+
       if (!token) {
         return next(new Error('Authentication token required'));
       }
 
       // Verify JWT token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      
+
       if (decoded.role === 'admin') {
         socket.user = {
           id: decoded.adminId || 'admin',
@@ -107,7 +108,7 @@ function initializeSocket(server) {
 
   io.on('connection', (socket) => {
     const { id: userId, role } = socket.user;
-    
+
     console.log(`User connected: ${userId} (${role})`);
 
     // Track active user
@@ -130,7 +131,7 @@ function initializeSocket(server) {
         }
 
         const { conversationId } = data;
-        
+
         // Validate conversation ID
         const convIdValidation = validateConversationId(conversationId);
         if (!convIdValidation.valid) {
@@ -148,14 +149,14 @@ function initializeSocket(server) {
             .select('*')
             .eq('id', conversationId)
             .single();
-          
+
           const result = await Promise.race([
             convPromise,
-            new Promise((_, reject) => 
+            new Promise((_, reject) =>
               setTimeout(() => reject(new Error('Database query timeout')), timeout)
             )
           ]);
-          
+
           const { data: convData, error } = result;
 
           if (error || !convData) {
@@ -192,8 +193,8 @@ function initializeSocket(server) {
         console.log(`User ${userId} joined conversation ${conversationId}`);
       } catch (error) {
         console.error('Error joining conversation:', error);
-        socket.emit('error', { 
-          message: error.message || 'Failed to join conversation. Please try again.' 
+        socket.emit('error', {
+          message: error.message || 'Failed to join conversation. Please try again.'
         });
       }
     });
@@ -206,7 +207,7 @@ function initializeSocket(server) {
         }
 
         const { conversationId } = data;
-        
+
         // Basic validation
         if (!conversationId || typeof conversationId !== 'string') {
           return;
@@ -253,8 +254,8 @@ function initializeSocket(server) {
         const rateLimitCheck = checkRateLimit(userId);
         if (!rateLimitCheck.allowed) {
           const waitTime = Math.ceil((rateLimitCheck.resetTime - Date.now()) / 1000);
-          socket.emit('error', { 
-            message: `Rate limit exceeded. Please wait ${waitTime} seconds before sending more messages.` 
+          socket.emit('error', {
+            message: `Rate limit exceeded. Please wait ${waitTime} seconds before sending more messages.`
           });
           return;
         }
@@ -269,14 +270,14 @@ function initializeSocket(server) {
             .select('*')
             .eq('id', conversationId)
             .single();
-          
+
           const result = await Promise.race([
             convPromise,
-            new Promise((_, reject) => 
+            new Promise((_, reject) =>
               setTimeout(() => reject(new Error('Database query timeout')), timeout)
             )
           ]);
-          
+
           const { data: convData, error: convError } = result;
 
           if (convError || !convData) {
@@ -310,11 +311,11 @@ function initializeSocket(server) {
         try {
           const encryptionResult = await Promise.race([
             encrypt(sanitizedContent),
-            new Promise((_, reject) => 
+            new Promise((_, reject) =>
               setTimeout(() => reject(new Error('Encryption timeout')), 5000)
             )
           ]);
-          
+
           encrypted = encryptionResult.encrypted;
           hash = encryptionResult.hash;
           isCompressed = encryptionResult.isCompressed || false;
@@ -347,11 +348,11 @@ function initializeSocket(server) {
 
           const result = await Promise.race([
             msgPromise,
-            new Promise((_, reject) => 
+            new Promise((_, reject) =>
               setTimeout(() => reject(new Error('Database query timeout')), timeout)
             )
           ]);
-          
+
           const { data: msgData, error: msgError } = result;
 
           if (msgError) {
@@ -400,8 +401,8 @@ function initializeSocket(server) {
         console.log(`Message sent in conversation ${conversationId} by ${userId}`);
       } catch (error) {
         console.error('Error sending message:', error);
-        socket.emit('error', { 
-          message: error.message || 'Failed to send message. Please try again.' 
+        socket.emit('error', {
+          message: error.message || 'Failed to send message. Please try again.'
         });
       }
     });
@@ -432,14 +433,14 @@ function initializeSocket(server) {
             .select('*')
             .eq('id', conversationId)
             .single();
-          
+
           const result = await Promise.race([
             convPromise,
-            new Promise((_, reject) => 
+            new Promise((_, reject) =>
               setTimeout(() => reject(new Error('Database query timeout')), timeout)
             )
           ]);
-          
+
           const { data: convData } = result;
 
           if (!convData) return;
@@ -468,7 +469,7 @@ function initializeSocket(server) {
               .eq('conversation_id', conversationId)
               .eq('sender_role', otherPartyRole)
               .eq('is_read', false),
-            new Promise((_, reject) => 
+            new Promise((_, reject) =>
               setTimeout(() => reject(new Error('Database query timeout')), timeout)
             )
           ]);
@@ -491,7 +492,7 @@ function initializeSocket(server) {
     // Handle disconnection
     socket.on('disconnect', (reason) => {
       console.log(`User disconnected: ${userId} (reason: ${reason})`);
-      
+
       try {
         const userData = socketToUser.get(socket.id);
         if (userData) {
