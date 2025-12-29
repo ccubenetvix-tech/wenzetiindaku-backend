@@ -5,6 +5,7 @@ const { supabaseAdmin } = require('../config/supabase');
 const emailService = require('../utils/email');
 const { authenticateToken, protect, requireRole, requireVerification } = require('../middleware/auth');
 const maishaPay = require('../utils/maishapay');
+const { getExchangeRate } = require('../utils/currency');
 
 const router = express.Router();
 
@@ -253,7 +254,8 @@ router.post('/orders', requireVerification, async (req, res) => {
     const {
       paymentMethod,
       shippingAddress,
-      saveAddressToProfile = false
+      saveAddressToProfile = false,
+      currency = 'USD'
     } = req.body || {};
 
     const paymentMethodMap = {
@@ -398,21 +400,30 @@ router.post('/orders', requireVerification, async (req, res) => {
     if (normalizedPaymentMethodKey === 'online') {
       const masterOrderId = ordersCreated[0].id;
 
-      const paymentData = maishaPay.generatePaymentData({
-        id: masterOrderId,
-        total_amount: Number(totalGlobalAmount.toFixed(2))
-      }, shippingAddressPayload.email);
+      let payAmount = totalGlobalAmount;
+      let payCurrency = 'USD';
 
-      return res.status(200).json({
+      if (currency === 'CDF') {
+        const rate = await getExchangeRate();
+        payAmount = totalGlobalAmount * rate;
+        payCurrency = 'CDF';
+      }
+
+      const paymentData = maishaPay.generatePaymentData(masterOrderId, payAmount, payCurrency);
+
+      // Clear cart
+      await supabaseAdmin.from('cart').delete().eq('customer_id', customerId);
+
+      return res.status(201).json({
         success: true,
         data: {
-          url: paymentData.url,
-          fields: paymentData.fields,
-          method: 'post_form',
-          orders: ordersCreated
+          orders: ordersCreated,
+          payment: {
+            method: 'maishapay',
+            ...paymentData
+          }
         }
       });
-
     } else {
       // --- COD Flow ---
       const allProductIds = validCartItems.map(i => i.product_id);
@@ -464,12 +475,12 @@ router.post('/orders', requireVerification, async (req, res) => {
  */
 router.post('/orders/verify-payment', requireVerification, async (req, res) => {
   try {
-    const { sessionId } = req.body;
+    const { sessionId, status, transactionRefId } = req.body;
     const customerId = req.user.id;
 
     if (!sessionId) return res.status(400).json({ success: false, message: 'Session ID required' });
 
-    const isValid = await maishaPay.verifyPayment(sessionId);
+    const isValid = await maishaPay.verifyPayment(sessionId, { status, transactionRefId });
     if (!isValid) {
       return res.status(400).json({ success: false, message: 'Payment verification failed' });
     }
