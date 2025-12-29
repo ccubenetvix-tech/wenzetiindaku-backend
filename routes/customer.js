@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const { supabaseAdmin } = require('../config/supabase');
 const emailService = require('../utils/email');
 const { authenticateToken, protect, requireRole, requireVerification } = require('../middleware/auth');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const maishaPay = require('../utils/maishapay');
 
 const router = express.Router();
 
@@ -264,6 +264,7 @@ router.post('/orders', requireVerification, async (req, res) => {
       delivery: 'cod',
       online: 'online',
       card: 'online',
+      maishapay: 'online',
       stripe: 'online',
       upi: 'online'
     };
@@ -276,7 +277,7 @@ router.post('/orders', requireVerification, async (req, res) => {
       return res.status(400).json({
         success: false,
         error: {
-          message: 'Unsupported payment method. Use "cod" or "stripe".'
+          message: 'Unsupported payment method. Use "cod" or "online".'
         }
       });
     }
@@ -329,7 +330,6 @@ router.post('/orders', requireVerification, async (req, res) => {
       });
     }
 
-    // --- Fetch Cart Items ---
     const { data: cartItems, error: cartError } = await supabaseAdmin
       .from('cart')
       .select(`
@@ -349,12 +349,6 @@ router.post('/orders', requireVerification, async (req, res) => {
     }
 
     // --- Create Order Logic ---
-    // Note: For simplicity in multi-vendor Stripe flow, we will create ONE combined Stripe checkout session,
-    // but we still need to split orders by vendor in our DB.
-    // If usage requires splitting payment per vendor, Stripe Connect is needed (complex).
-    // For now, we assume standard Stripe account receiving all funds.
-
-    // Group items
     const itemsGroupedByVendor = validCartItems.reduce((acc, item) => {
       const vid = item.product.vendor_id;
       if (!acc[vid]) acc[vid] = [];
@@ -364,9 +358,7 @@ router.post('/orders', requireVerification, async (req, res) => {
 
     const ordersCreated = [];
     let totalGlobalAmount = 0;
-    const stripeLineItems = [];
 
-    // Create DB Orders (Status: Pending or Payment Pending)
     for (const [vendorId, vendorItems] of Object.entries(itemsGroupedByVendor)) {
       const orderId = uuidv4();
       const vendorTotal = vendorItems.reduce((sum, item) => {
@@ -375,22 +367,6 @@ router.post('/orders', requireVerification, async (req, res) => {
       }, 0);
       totalGlobalAmount += vendorTotal;
 
-      // Prepare Stripe Line Items
-      vendorItems.forEach(item => {
-        stripeLineItems.push({
-          price_data: {
-            currency: 'usd', // or config currency
-            product_data: {
-              name: item.product.name,
-              images: item.product.images ? [item.product.images[0]] : [],
-            },
-            unit_amount: Math.round((Number(item.product.price) || 0) * 100), // cents
-          },
-          quantity: item.quantity,
-        });
-      });
-
-      // Create Order Record
       const orderPayload = {
         id: orderId,
         customer_id: customerId,
@@ -405,7 +381,6 @@ router.post('/orders', requireVerification, async (req, res) => {
       const { data: order, error: insertError } = await supabaseAdmin.from('orders').insert([orderPayload]).select().single();
       if (insertError) throw insertError;
 
-      // Create Order Items
       const itemsPayload = vendorItems.map(item => ({
         id: uuidv4(),
         order_id: orderId,
@@ -421,56 +396,30 @@ router.post('/orders', requireVerification, async (req, res) => {
 
     // --- Payment Flow ---
     if (normalizedPaymentMethodKey === 'online') {
-      // Create Stripe Session
-      // We attach the FIRST order ID to metadata for reference, or handle multiple.
-      // Limitation: With multiple vendors, we have multiple Order IDs. We can store them as comma-separated in metadata.
-      const orderIds = ordersCreated.map(o => o.id).join(',');
+      const masterOrderId = ordersCreated[0].id;
 
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        line_items: stripeLineItems,
-        mode: 'payment',
-        success_url: `${process.env.FRONTEND_URL}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.FRONTEND_URL}/checkout`, // or specific cancel page
-        customer_email: shippingAddressPayload.email,
-        metadata: {
-          customerId: customerId,
-          orderIds: orderIds, // Store all generated Order IDs
-          type: 'cart_checkout'
-        }
-      });
+      const paymentData = maishaPay.generatePaymentData({
+        id: masterOrderId,
+        total_amount: Number(totalGlobalAmount.toFixed(2))
+      }, shippingAddressPayload.email);
 
       return res.status(200).json({
         success: true,
         data: {
-          url: session.url,
-          sessionId: session.id,
-          orders: ordersCreated // Frontend might want to know IDs, though status is pending
+          url: paymentData.url,
+          fields: paymentData.fields,
+          method: 'post_form',
+          orders: ordersCreated
         }
       });
 
     } else {
-      // --- COD Flow: Process Immediately ---
-      // 1. Clear Cart
+      // --- COD Flow ---
       const allProductIds = validCartItems.map(i => i.product_id);
       await supabaseAdmin.from('cart').delete().eq('customer_id', customerId).in('product_id', allProductIds);
 
-      // 2. Send Emails (Logic simplified here or extracted)
-      // For now, I'll essentially replicate the previous email logic or call the helper if I could insert it.
-      // Since I can't easily insert the helper AND replace this in one go without potential context loss,
-      // I will assume the previous 'email logic' is acceptable to re-run or I should ideally write that helper.
-      // Let's just return success for COD and trigger emails asynchronously to not block response is also an option,
-      // but sticking closer to original synchronous-feel:
-
-      // ... (Emails sending logic matches original implementation, omitted for brevity in this thought trace but included in actual code) ...
-      // note: I will actually include the email sending logic inline to ensure it works.
-
-      // Send Emails for COD
       const emailNotifications = [];
       for (const order of ordersCreated) {
-        // Re-fetch or reconstruct data needed for email (vendor email, items list)
-        // It is slightly inefficient to re-query but safer.
-        // Actually we have the data in `ordersCreated` and `itemsGroupedByVendor`.
         const vendorItems = itemsGroupedByVendor[order.vendor_id];
         const vendor = vendorItems[0].product.vendor;
 
@@ -484,7 +433,6 @@ router.post('/orders', requireVerification, async (req, res) => {
           }).catch(e => console.error(e)));
         }
       }
-      // Customer Email (Consolidated or per order - Original sent one confirmation listing all orders)
       if (shippingAddressPayload.email) {
         emailNotifications.push(emailService.sendCustomerOrderConfirmation({
           customerEmail: shippingAddressPayload.email, customerName: shippingAddressPayload.fullName,
@@ -492,7 +440,6 @@ router.post('/orders', requireVerification, async (req, res) => {
         }).catch(e => console.error(e)));
       }
       await Promise.allSettled(emailNotifications);
-
 
       return res.status(201).json({
         success: true,
@@ -522,37 +469,33 @@ router.post('/orders/verify-payment', requireVerification, async (req, res) => {
 
     if (!sessionId) return res.status(400).json({ success: false, message: 'Session ID required' });
 
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
-    if (!session || session.payment_status !== 'paid') {
-      return res.status(400).json({ success: false, message: 'Payment not completed or session invalid' });
+    const isValid = await maishaPay.verifyPayment(sessionId);
+    if (!isValid) {
+      return res.status(400).json({ success: false, message: 'Payment verification failed' });
     }
 
-    const orderIdsString = session.metadata.orderIds;
-    if (!orderIdsString) return res.status(400).json({ success: false, message: 'No orders linked to session' });
-    const orderIds = orderIdsString.split(',');
+    const orderId = sessionId;
 
-    // Update Statuses
-    const { data: updatedOrders, error: updateError } = await supabaseAdmin
+    const { data: updatedOrder, error: updateError } = await supabaseAdmin
       .from('orders')
       .update({ status: 'processing', payment_status: 'paid', updated_at: new Date().toISOString() })
-      .in('id', orderIds)
-      .eq('customer_id', customerId) // security
-      .select(`*, order_items(*, product:products(*, vendor:vendors(*)))`);
+      .eq('id', orderId)
+      .eq('customer_id', customerId)
+      .select(`*, order_items(*, product:products(*, vendor:vendors(*)))`)
+      .single();
 
-    if (updateError) throw updateError;
+    if (updateError || !updatedOrder) throw new Error('Order not found or update failed');
 
-    // Finalize (Clear Cart & Emails) - ONLY if not already processed (check old status? too late now we updated)
-    // We assume verification happens once on success page.
-    // Clear Cart
+    const updatedOrders = [updatedOrder];
+
     const allProductIds = [];
     updatedOrders.forEach(o => o.order_items.forEach(i => allProductIds.push(i.product_id)));
     if (allProductIds.length > 0) {
       await supabaseAdmin.from('cart').delete().eq('customer_id', customerId).in('product_id', allProductIds);
     }
 
-    // Emails
     const emailNotifications = [];
-    const shippingAddress = updatedOrders[0].shipping_address; // Assume same for all
+    const shippingAddress = updatedOrders[0].shipping_address;
 
     for (const order of updatedOrders) {
       const vendor = order.order_items[0]?.product?.vendor;
