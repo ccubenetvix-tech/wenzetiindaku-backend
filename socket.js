@@ -75,7 +75,7 @@ function initializeSocket(server) {
       if (decoded.role === 'admin') {
         socket.user = {
           id: decoded.adminId || 'admin',
-          email: 'wenzetiindaku@gmail.com',
+          email: 'admin@wenzetiindaku.com',
           role: 'admin'
         };
       } else {

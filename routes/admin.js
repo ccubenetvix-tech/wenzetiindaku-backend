@@ -37,7 +37,7 @@ router.post('/login', async (req, res) => {
     }
 
     // Check if it's the admin credentials
-    if (email === 'wenzetiindaku@gmail.com' && password === 'wenzetiindaku') {
+    if (email === 'admin@wenzetiindaku.com' && password === 'Admin@27A') {
       // Generate token for admin
       const token = generateToken('admin');
 

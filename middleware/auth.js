@@ -21,13 +21,13 @@ const authenticateToken = async (req, res, next) => {
 
     // Verify JWT token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    
+
+
     // Handle admin authentication
     if (decoded.role === 'admin') {
       req.user = {
         id: decoded.adminId || 'admin',
-        email: 'wenzetiindaku@gmail.com',
+        email: 'admin@wenzetiindaku.com',
         role: 'admin'
       };
     } else {
@@ -55,7 +55,7 @@ const authenticateToken = async (req, res, next) => {
         role: decoded.role,
         ...user
       };
-      
+
     }
 
     next();
@@ -68,7 +68,7 @@ const authenticateToken = async (req, res, next) => {
         }
       });
     }
-    
+
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
