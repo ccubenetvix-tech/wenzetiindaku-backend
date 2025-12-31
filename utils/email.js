@@ -19,8 +19,8 @@ class EmailService {
    */
   async sendOTPEmail(email, otp, type = 'verification') {
     try {
-      const subject = type === 'verification' 
-        ? 'Verify Your WENZE TII NDAKU Account' 
+      const subject = type === 'verification'
+        ? 'Verify Your WENZE TII NDAKU Account'
         : 'Your WENZE TII NDAKU OTP';
 
       const html = `
@@ -34,10 +34,10 @@ class EmailService {
             <h2 style="color: #1e3a8a; margin-bottom: 20px;">${type === 'verification' ? 'Verify Your Account' : 'Your OTP Code'}</h2>
             
             <p style="color: #374151; font-size: 16px; line-height: 1.6;">
-              ${type === 'verification' 
-                ? 'Thank you for signing up with WENZE TII NDAKU! Please use the OTP below to verify your account:'
-                : 'Here is your OTP code for WENZE TII NDAKU:'
-              }
+              ${type === 'verification'
+          ? 'Thank you for signing up with WENZE TII NDAKU! Please use the OTP below to verify your account:'
+          : 'Here is your OTP code for WENZE TII NDAKU:'
+        }
             </p>
             
             <div style="background: white; border: 2px solid #1e3a8a; border-radius: 8px; padding: 20px; text-align: center; margin: 20px 0;">
@@ -82,7 +82,7 @@ class EmailService {
   async sendWelcomeEmail(email, name, role) {
     try {
       const subject = 'Welcome to WENZE TII NDAKU!';
-      
+
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #1e3a8a 0%, #ea580c 100%); padding: 20px; text-align: center;">
@@ -99,10 +99,10 @@ class EmailService {
             
             <div style="background: white; border-radius: 8px; padding: 20px; margin: 20px 0;">
               <h3 style="color: #1e3a8a; margin-top: 0;">What's next?</h3>
-              ${role === 'vendor' 
-                ? '<p style="color: #374151; margin: 0;">Our team will review your vendor application within 2-3 business days. You\'ll receive an email notification once approved.</p>'
-                : '<p style="color: #374151; margin: 0;">You can now start shopping and exploring our marketplace. Browse thousands of products from verified vendors.</p>'
-              }
+              ${role === 'vendor'
+          ? '<p style="color: #374151; margin: 0;">Our team will review your vendor application within 2-3 business days. You\'ll receive an email notification once approved.</p>'
+          : '<p style="color: #374151; margin: 0;">You can now start shopping and exploring our marketplace. Browse thousands of products from verified vendors.</p>'
+        }
             </div>
             
             <div style="text-align: center; margin: 30px 0;">
@@ -142,7 +142,7 @@ class EmailService {
   async sendVendorApprovalEmail(email, businessName) {
     try {
       const subject = 'Congratulations! Your Vendor Application Has Been Approved';
-      
+
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #1e3a8a 0%, #ea580c 100%); padding: 20px; text-align: center;">
@@ -208,7 +208,7 @@ class EmailService {
   async sendVendorRejectionEmail(email, businessName, reason) {
     try {
       const subject = 'Vendor Application Update - WENZE TII NDAKU';
-      
+
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="background: linear-gradient(135deg, #1e3a8a 0%, #ea580c 100%); padding: 20px; text-align: center;">
@@ -299,7 +299,7 @@ class EmailService {
       });
 
       const formattedTotal = currencyFormatter.format(Number.parseFloat(totalAmount || 0));
-      const formattedPaymentMethod = paymentMethod === 'cod' ? 'Pay on Delivery' : 'Online (Stripe)';
+      const formattedPaymentMethod = paymentMethod === 'cod' ? 'Pay on Delivery' : 'Online (MaishaPay)';
 
       const itemsRows = items
         .map(item => {
@@ -464,18 +464,17 @@ class EmailService {
             <div style="margin-bottom: 20px;">
               <h3 style="margin: 0 0 8px; font-size: 16px; color: #111827;">Order summary</h3>
               <p style="margin: 0; font-size: 14px; color: #374151;"><strong>Total paid:</strong> ${currencyFormatter.format(totalAmount)}</p>
-              <p style="margin: 4px 0 0; font-size: 14px; color: #374151;"><strong>Payment method:</strong> ${paymentMethod === 'cod' ? 'Pay on Delivery' : 'Online (Stripe)'}</p>
+              <p style="margin: 4px 0 0; font-size: 14px; color: #374151;"><strong>Payment method:</strong> ${paymentMethod === 'cod' ? 'Pay on Delivery' : 'Online (MaishaPay)'}</p>
             </div>
 
-            ${
-              shippingLines
-                ? `
+            ${shippingLines
+          ? `
             <div style="margin-bottom: 20px;">
               <h3 style="margin: 0 0 8px; font-size: 16px; color: #111827;">Shipping to</h3>
               <p style="margin: 0; font-size: 14px; color: #374151; line-height: 1.5;">${shippingLines}</p>
             </div>`
-                : ''
-            }
+          : ''
+        }
 
             <div style="margin-bottom: 20px;">
               <h3 style="margin: 0 0 8px; font-size: 16px; color: #111827;">Orders included</h3>

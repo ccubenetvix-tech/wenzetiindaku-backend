@@ -93,8 +93,8 @@ const uploadProductImageFromBase64 = async ({
 const sanitizeImageArray = (value) => (
   Array.isArray(value)
     ? value
-        .map((url) => (typeof url === 'string' ? url.trim() : ''))
-        .filter((url) => url.length > 0)
+      .map((url) => (typeof url === 'string' ? url.trim() : ''))
+      .filter((url) => url.length > 0)
     : []
 );
 
@@ -128,14 +128,14 @@ router.post('/profile/photo', protect, async (req, res) => {
     const matches = fileBase64.match(/^data:(.*);base64,(.*)$/);
     const mimeType = matches ? matches[1] : 'image/jpeg';
     const base64Data = matches ? matches[2] : fileBase64;
-    
+
     if (!base64Data) {
       return res.status(400).json({
         success: false,
         error: { message: 'Invalid image data' }
       });
     }
-    
+
     const buffer = Buffer.from(base64Data, 'base64');
 
     const ext = fileName.split('.').pop() || 'jpg';
@@ -151,9 +151,9 @@ router.post('/profile/photo', protect, async (req, res) => {
 
     if (uploadError) {
       console.error('Supabase upload error:', uploadError);
-      return res.status(500).json({ 
-        success: false, 
-        error: { message: uploadError.message || 'Failed to upload image' } 
+      return res.status(500).json({
+        success: false,
+        error: { message: uploadError.message || 'Failed to upload image' }
       });
     }
 
@@ -164,9 +164,9 @@ router.post('/profile/photo', protect, async (req, res) => {
 
     if (urlError || !publicUrlData?.publicUrl) {
       console.error('Error getting public URL:', urlError);
-      return res.status(500).json({ 
-        success: false, 
-        error: { message: 'Failed to get image URL' } 
+      return res.status(500).json({
+        success: false,
+        error: { message: 'Failed to get image URL' }
       });
     }
 
@@ -186,24 +186,24 @@ router.post('/profile/photo', protect, async (req, res) => {
       // If column doesn't exist, still return success with URL so frontend can use it
       if (updateError.code === '42703' || updateError.message?.includes('profile_photo')) {
         console.warn('profile_photo column may not exist in vendors table, but image uploaded successfully');
-        return res.json({ 
-          success: true, 
+        return res.json({
+          success: true,
           data: { url: publicUrl },
           message: 'Image uploaded but profile_photo column may need to be added to vendors table'
         });
       }
-      return res.status(500).json({ 
-        success: false, 
-        error: { message: updateError.message || 'Failed to save image URL' } 
+      return res.status(500).json({
+        success: false,
+        error: { message: updateError.message || 'Failed to save image URL' }
       });
     }
 
     return res.json({ success: true, data: { url: publicUrl, vendor } });
   } catch (error) {
     console.error('Upload vendor profile photo error:', error);
-    return res.status(500).json({ 
-      success: false, 
-      error: { message: error.message || 'Internal server error' } 
+    return res.status(500).json({
+      success: false,
+      error: { message: error.message || 'Internal server error' }
     });
   }
 });
@@ -387,7 +387,7 @@ router.put('/profile', protect, requireVerification, async (req, res) => {
       // Verify current password
       const bcrypt = require('bcryptjs');
       const isCurrentPasswordValid = await bcrypt.compare(currentPassword, currentVendor.password);
-      
+
       if (!isCurrentPasswordValid) {
         return res.status(400).json({
           success: false,
@@ -511,7 +511,7 @@ router.get('/dashboard', protect, async (req, res) => {
         .from('order_items')
         .select('quantity, price, order_id')
         .in('order_id', orders.map(o => o.id));
-      
+
       if (orderItemsError) {
         console.error('Order items fetch error:', orderItemsError);
       } else {
@@ -534,7 +534,7 @@ router.get('/dashboard', protect, async (req, res) => {
       return sum;
     }, 0) || 0;
     const uniqueCustomers = new Set(customers?.map(c => c.customer_id)).size || 0;
-    
+
     console.log('Dashboard statistics:', {
       vendorId: id,
       totalProducts,
@@ -588,7 +588,7 @@ router.get('/dashboard', protect, async (req, res) => {
           const ratings = productReviews
             .map(r => Number(r.rating))
             .filter(r => !isNaN(r) && r > 0);
-          
+
           if (ratings.length > 0) {
             averageRating = ratings.reduce((sum, r) => sum + r, 0) / ratings.length;
           }
@@ -639,7 +639,7 @@ router.get('/dashboard', protect, async (req, res) => {
     };
 
     console.log('Dashboard data being sent:', dashboardData);
-    
+
     res.json({
       success: true,
       data: dashboardData
@@ -714,7 +714,7 @@ router.get('/products', protect, async (req, res) => {
           const ratings = productReviews
             .map(r => Number(r.rating))
             .filter(r => !isNaN(r) && r > 0);
-          
+
           if (ratings.length > 0) {
             averageRating = ratings.reduce((sum, r) => sum + r, 0) / ratings.length;
           }
@@ -816,6 +816,7 @@ router.post('/products', protect, async (req, res) => {
     const productId = uuidv4();
     let imageUrls = sanitizeImageArray(images);
 
+    // Handle legacy primaryImage
     if (primaryImage) {
       try {
         const uploadedUrl = await uploadProductImageFromBase64({
@@ -835,6 +836,29 @@ router.post('/products', protect, async (req, res) => {
             message: 'Failed to upload product image',
           },
         });
+      }
+    }
+
+    // Handle multiple new images
+    const { newImages } = req.body;
+    if (Array.isArray(newImages) && newImages.length > 0) {
+      for (let i = 0; i < newImages.length; i++) {
+        const img = newImages[i];
+        if (img.base64 && img.name) {
+          try {
+            const uploadedUrl = await uploadProductImageFromBase64({
+              base64: img.base64,
+              fileName: img.name,
+              vendorId: id,
+              productId,
+              prefix: `gallery-${Date.now()}-${i}`,
+            });
+            imageUrls.push(uploadedUrl);
+          } catch (err) {
+            console.error('Gallery image upload error:', err);
+            // Continue with other images even if one fails
+          }
+        }
       }
     }
 
@@ -998,6 +1022,33 @@ router.put('/products/:productId', protect, async (req, res) => {
           },
         });
       }
+    }
+
+    // Handle multiple new images
+    const { newImages } = req.body;
+    if (Array.isArray(newImages) && newImages.length > 0) {
+      for (let i = 0; i < newImages.length; i++) {
+        const img = newImages[i];
+        if (img.base64 && img.name) {
+          try {
+            const uploadedUrl = await uploadProductImageFromBase64({
+              base64: img.base64,
+              fileName: img.name,
+              vendorId: id,
+              productId,
+              prefix: `gallery-${Date.now()}-${i}`,
+            });
+            resolvedImages.push(uploadedUrl);
+            shouldUpdateImages = true;
+          } catch (err) {
+            console.error('Gallery image upload error:', err);
+          }
+        }
+      }
+    }
+
+    if (shouldUpdateImages) {
+      updateData.images = resolvedImages;
     }
 
     if (shouldUpdateImages) {
@@ -1280,7 +1331,7 @@ router.delete('/delete-account', protect, async (req, res) => {
     }
 
     // Delete all associated data in the correct order (due to foreign key constraints)
-    
+
     // 1. Delete order items (through orders)
     const { data: orders } = await supabaseAdmin
       .from('orders')

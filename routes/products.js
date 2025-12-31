@@ -10,12 +10,12 @@ const router = express.Router();
  */
 router.get('/', async (req, res) => {
   try {
-    const { 
-      page = 1, 
-      limit = 12, 
-      category, 
-      search, 
-      sortBy = 'created_at', 
+    const {
+      page = 1,
+      limit = 12,
+      category,
+      search,
+      sortBy = 'created_at',
       sortOrder = 'desc',
       minPrice,
       maxPrice,
@@ -222,6 +222,8 @@ router.get('/featured', async (req, res) => {
       .from('products')
       .select(`
         *,
+        sizes,
+        colors,
         vendor:vendors!inner(
           id,
           business_name,
@@ -281,7 +283,7 @@ router.get('/featured', async (req, res) => {
 router.get('/:productId', async (req, res) => {
   try {
     const { productId } = req.params;
-    
+
     // Check if user is authenticated and is the vendor
     let isVendorOwner = false;
     const authHeader = req.headers['authorization'];
@@ -290,7 +292,7 @@ router.get('/:productId', async (req, res) => {
         const jwt = require('jsonwebtoken');
         const token = authHeader.split(' ')[1];
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        
+
         if (decoded.role === 'vendor') {
           // Get product to check vendor_id
           const { data: productCheck } = await supabaseAdmin
@@ -298,7 +300,7 @@ router.get('/:productId', async (req, res) => {
             .select('vendor_id')
             .eq('id', productId)
             .single();
-          
+
           if (productCheck && productCheck.vendor_id === decoded.userId) {
             isVendorOwner = true;
           }

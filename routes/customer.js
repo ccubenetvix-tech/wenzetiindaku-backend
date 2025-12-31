@@ -409,10 +409,16 @@ router.post('/orders', requireVerification, async (req, res) => {
         payCurrency = 'CDF';
       }
 
-      const paymentData = maishaPay.generatePaymentData(masterOrderId, payAmount, payCurrency);
+      // Secure Payment Init via Service
+      const MaishaPayService = require('../services/maishaPayService');
+      const paymentPayload = await MaishaPayService.initiatePayment(masterOrderId, payAmount, payCurrency);
 
-      // Clear cart
-      await supabaseAdmin.from('cart').delete().eq('customer_id', customerId);
+      // We explicitly DO NOT clear the cart here immediately for online payments.
+      // Cart should be cleared only after SUCCESSFUL payment verification.
+      // However, current flow (line 415 original) cleared it immediately?
+      // "await supabaseAdmin.from('cart').delete().eq('customer_id', customerId);"
+      // If user cancels payment, cart is gone. That's bad UX.
+      // Better to keep cart until paid. OrderService.finalizeOrder handles cart deletion.
 
       return res.status(201).json({
         success: true,
@@ -420,7 +426,7 @@ router.post('/orders', requireVerification, async (req, res) => {
           orders: ordersCreated,
           payment: {
             method: 'maishapay',
-            ...paymentData
+            ...paymentPayload
           }
         }
       });
@@ -476,59 +482,30 @@ router.post('/orders', requireVerification, async (req, res) => {
 router.post('/orders/verify-payment', requireVerification, async (req, res) => {
   try {
     const { sessionId, status, transactionRefId } = req.body;
-    const customerId = req.user.id;
+    // const customerId = req.user.id; // Not strictly needed if processing by ID, but good for logs
 
     if (!sessionId) return res.status(400).json({ success: false, message: 'Session ID required' });
 
-    const isValid = await maishaPay.verifyPayment(sessionId, { status, transactionRefId });
+    // Secure Verification via Service
+    const MaishaPayService = require('../services/maishaPayService');
+    const isValid = await MaishaPayService.verifyTransaction(sessionId, status, transactionRefId);
+
     if (!isValid) {
-      return res.status(400).json({ success: false, message: 'Payment verification failed' });
+      return res.status(400).json({ success: false, message: 'Payment verification failed or pending' });
     }
 
-    const orderId = sessionId;
-
-    const { data: updatedOrder, error: updateError } = await supabaseAdmin
+    // Fetch the final order to return it (Optional, but frontend expects it)
+    const { data: updatedOrder } = await supabaseAdmin
       .from('orders')
-      .update({ status: 'processing', payment_status: 'paid', updated_at: new Date().toISOString() })
-      .eq('id', orderId)
-      .eq('customer_id', customerId)
       .select(`*, order_items(*, product:products(*, vendor:vendors(*)))`)
+      .eq('id', sessionId)
       .single();
 
-    if (updateError || !updatedOrder) throw new Error('Order not found or update failed');
-
-    const updatedOrders = [updatedOrder];
-
-    const allProductIds = [];
-    updatedOrders.forEach(o => o.order_items.forEach(i => allProductIds.push(i.product_id)));
-    if (allProductIds.length > 0) {
-      await supabaseAdmin.from('cart').delete().eq('customer_id', customerId).in('product_id', allProductIds);
+    if (!updatedOrder) {
+      return res.status(404).json({ success: false, message: 'Order not found after verification' });
     }
 
-    const emailNotifications = [];
-    const shippingAddress = updatedOrders[0].shipping_address;
-
-    for (const order of updatedOrders) {
-      const vendor = order.order_items[0]?.product?.vendor;
-      if (vendor?.business_email) {
-        const emailItems = order.order_items.map(i => ({ name: i.product.name, quantity: i.quantity, price: i.price }));
-        emailNotifications.push(emailService.sendVendorNewOrderEmail({
-          vendorEmail: vendor.business_email, vendorName: vendor.business_name,
-          customerName: shippingAddress.fullName, customerEmail: shippingAddress.email,
-          orderId: order.id, totalAmount: order.total_amount,
-          paymentMethod: 'online', shippingAddress: shippingAddress, items: emailItems
-        }).catch(e => console.error(e)));
-      }
-    }
-    if (shippingAddress.email) {
-      emailNotifications.push(emailService.sendCustomerOrderConfirmation({
-        customerEmail: shippingAddress.email, customerName: shippingAddress.fullName,
-        orders: updatedOrders, paymentMethod: 'online', shippingAddress: shippingAddress
-      }).catch(e => console.error(e)));
-    }
-    await Promise.allSettled(emailNotifications);
-
-    res.json({ success: true, message: 'Payment verified', data: { orders: updatedOrders } });
+    res.json({ success: true, message: 'Payment verified', data: { orders: [updatedOrder] } });
 
   } catch (error) {
     console.error('Verify payment error:', error);
@@ -792,7 +769,15 @@ router.get('/wishlist', requireVerification, async (req, res) => {
       .from('wishlist')
       .select(`
         *,
-        product:products (*)
+        *,
+        product:products (
+          *,
+          sizes,
+          colors,
+          vendor:vendors (
+            business_name
+          )
+        )
       `)
       .eq('customer_id', id)
       .order('created_at', { ascending: false });

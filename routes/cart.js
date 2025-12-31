@@ -1,6 +1,8 @@
 const express = require('express');
-const { supabaseAdmin } = require('../config/supabase');
 const { authenticateToken } = require('../middleware/auth');
+const validateRequest = require('../middleware/validateRequest');
+const CartService = require('../services/cartService');
+const { addToCartSchema, updateCartItemSchema } = require('../validators/cartValidator');
 
 const router = express.Router();
 
@@ -15,70 +17,29 @@ router.use(authenticateToken);
 router.get('/', async (req, res) => {
   try {
     const { id } = req.user;
-    
-    console.log('Fetching cart for customer:', id);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
 
-    const { data: cartItems, error } = await supabaseAdmin
-      .from('cart')
-      .select(`
-        id,
-        quantity,
-        created_at,
-        updated_at,
-        product_id,
-        product:products (
-          id,
-          name,
-          price,
-          images,
-          stock,
-          status,
-          vendor_id,
-          vendor:vendors (
-            id,
-            business_name,
-            approved,
-            verified
-          )
-        )
-      `)
-      .eq('customer_id', id);
-    
-    console.log('Raw cart query result:', cartItems?.length || 0, 'items');
-
-    if (error) {
-      console.error('Error fetching cart:', error);
-      return res.status(500).json({
-        success: false,
-        error: {
-          message: 'Failed to fetch cart'
-        }
-      });
-    }
-
-    // Filter out items where product doesn't exist
-    const validCartItems = (cartItems || []).filter(item => {
-      const isValid = item.product !== null && item.product !== undefined;
-      if (!isValid) {
-        console.log('Filtered out cart item with missing product:', item.id);
-      }
-      return isValid;
-    });
-
-    console.log('Cart items before filter:', cartItems?.length || 0);
-    console.log('Cart items after filter:', validCartItems.length);
+    const result = await CartService.getCart(id, page, limit);
 
     res.json({
       success: true,
-      data: { cartItems: validCartItems }
+      data: {
+        cartItems: result.items,
+        pagination: {
+          total: result.total,
+          page: result.page,
+          limit: result.limit,
+          pages: Math.ceil(result.total / result.limit)
+        }
+      }
     });
-
   } catch (error) {
     console.error('Get cart error:', error);
-    res.status(500).json({
+    res.status(error.statusCode || 500).json({
       success: false,
       error: {
-        message: 'Internal server error'
+        message: error.message || 'Internal server error'
       }
     });
   }
@@ -89,92 +50,24 @@ router.get('/', async (req, res) => {
  * @desc    Add item to cart
  * @access  Private
  */
-router.post('/', async (req, res) => {
+router.post('/', validateRequest(addToCartSchema), async (req, res) => {
   try {
     const { id } = req.user;
-    const { productId, quantity = 1 } = req.body;
+    const { productId, quantity } = req.body;
 
-    if (!productId) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          message: 'Product ID is required'
-        }
-      });
-    }
+    const cartItem = await CartService.addToCart(id, productId, quantity);
 
-    // Check if item already exists in cart
-    const { data: existingItem } = await supabaseAdmin
-      .from('cart')
-      .select('id, quantity')
-      .eq('customer_id', id)
-      .eq('product_id', productId)
-      .single();
-
-    if (existingItem) {
-      // Update quantity
-      const { data: updatedItem, error } = await supabaseAdmin
-        .from('cart')
-        .update({ 
-          quantity: existingItem.quantity + quantity,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', existingItem.id)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error updating cart item:', error);
-        return res.status(500).json({
-          success: false,
-          error: {
-            message: 'Failed to update cart item'
-          }
-        });
-      }
-
-      return res.json({
-        success: true,
-        message: 'Cart item updated',
-        data: { cartItem: updatedItem }
-      });
-    } else {
-      // Add new item
-      const { data: newItem, error } = await supabaseAdmin
-        .from('cart')
-        .insert([{
-          customer_id: id,
-          product_id: productId,
-          quantity,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error adding to cart:', error);
-        return res.status(500).json({
-          success: false,
-          error: {
-            message: 'Failed to add item to cart'
-          }
-        });
-      }
-
-      res.status(201).json({
-        success: true,
-        message: 'Item added to cart',
-        data: { cartItem: newItem }
-      });
-    }
-
+    res.status(201).json({
+      success: true,
+      message: 'Item added to cart',
+      data: { cartItem }
+    });
   } catch (error) {
     console.error('Add to cart error:', error);
-    res.status(500).json({
+    res.status(error.statusCode || 500).json({
       success: false,
       error: {
-        message: 'Internal server error'
+        message: error.message || 'Internal server error'
       }
     });
   }
@@ -185,54 +78,26 @@ router.post('/', async (req, res) => {
  * @desc    Update cart item quantity
  * @access  Private
  */
-router.put('/:itemId', async (req, res) => {
+router.put('/:itemId', validateRequest(updateCartItemSchema), async (req, res) => {
   try {
     const { id } = req.user;
     const { itemId } = req.params;
     const { quantity } = req.body;
 
-    if (!quantity || quantity < 1) {
-      return res.status(400).json({
-        success: false,
-        error: {
-          message: 'Valid quantity is required'
-        }
-      });
-    }
-
-    const { data: updatedItem, error } = await supabaseAdmin
-      .from('cart')
-      .update({ 
-        quantity,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', itemId)
-      .eq('customer_id', id)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error updating cart item:', error);
-      return res.status(500).json({
-        success: false,
-        error: {
-          message: 'Failed to update cart item'
-        }
-      });
-    }
+    const cartItem = await CartService.updateCartItem(id, itemId, quantity);
 
     res.json({
       success: true,
       message: 'Cart item updated',
-      data: { cartItem: updatedItem }
+      data: { cartItem }
     });
 
   } catch (error) {
     console.error('Update cart item error:', error);
-    res.status(500).json({
+    res.status(error.statusCode || 500).json({
       success: false,
       error: {
-        message: 'Internal server error'
+        message: error.message || 'Internal server error'
       }
     });
   }
@@ -248,21 +113,7 @@ router.delete('/:itemId', async (req, res) => {
     const { id } = req.user;
     const { itemId } = req.params;
 
-    const { error } = await supabaseAdmin
-      .from('cart')
-      .delete()
-      .eq('id', itemId)
-      .eq('customer_id', id);
-
-    if (error) {
-      console.error('Error removing from cart:', error);
-      return res.status(500).json({
-        success: false,
-        error: {
-          message: 'Failed to remove item from cart'
-        }
-      });
-    }
+    await CartService.removeFromCart(id, itemId);
 
     res.json({
       success: true,
@@ -271,10 +122,10 @@ router.delete('/:itemId', async (req, res) => {
 
   } catch (error) {
     console.error('Remove from cart error:', error);
-    res.status(500).json({
+    res.status(error.statusCode || 500).json({
       success: false,
       error: {
-        message: 'Internal server error'
+        message: error.message || 'Internal server error'
       }
     });
   }
@@ -288,21 +139,7 @@ router.delete('/:itemId', async (req, res) => {
 router.delete('/', async (req, res) => {
   try {
     const { id } = req.user;
-
-    const { error } = await supabaseAdmin
-      .from('cart')
-      .delete()
-      .eq('customer_id', id);
-
-    if (error) {
-      console.error('Error clearing cart:', error);
-      return res.status(500).json({
-        success: false,
-        error: {
-          message: 'Failed to clear cart'
-        }
-      });
-    }
+    await CartService.clearCart(id);
 
     res.json({
       success: true,
@@ -311,10 +148,10 @@ router.delete('/', async (req, res) => {
 
   } catch (error) {
     console.error('Clear cart error:', error);
-    res.status(500).json({
+    res.status(error.statusCode || 500).json({
       success: false,
       error: {
-        message: 'Internal server error'
+        message: error.message || 'Internal server error'
       }
     });
   }

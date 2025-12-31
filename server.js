@@ -15,6 +15,7 @@ const productRoutes = require('./routes/products');
 const cartRoutes = require('./routes/cart');
 const reviewRoutes = require('./routes/reviews');
 const chatRoutes = require('./routes/chat');
+const paymentRoutes = require('./routes/payment');
 
 // Import passport configuration
 require('./config/passport');
@@ -103,6 +104,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/payment', paymentRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
