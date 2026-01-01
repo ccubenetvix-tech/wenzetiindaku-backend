@@ -238,6 +238,16 @@ router.get('/google/callback',
  * @desc    Verify Google OAuth token (for mobile apps)
  * @access  Public
  */
+const { OAuth2Client } = require('google-auth-library');
+
+// Initialize Google Auth Client
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+/**
+ * @route   POST /api/auth/google/verify-token
+ * @desc    Verify Google OAuth token (for mobile apps & SPA)
+ * @access  Public
+ */
 router.post('/google/verify-token', async (req, res) => {
   try {
     const { token } = req.body;
@@ -251,20 +261,21 @@ router.post('/google/verify-token', async (req, res) => {
       });
     }
 
-    // Verify Google token (you would use Google's API to verify the token)
-    // For now, we'll assume the token is valid and contains user info
-    // In production, you should verify the token with Google's API
+    // Verify the ID Token
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: process.env.GOOGLE_CLIENT_ID, // Specify the CLIENT_ID of the app that accesses the backend
+    });
+    
+    const payload = ticket.getPayload();
+    const {
+        sub: googleId,
+        email,
+        name,
+        picture: photo
+    } = payload;
 
-    // This is a simplified version - in production, verify with Google
-    const userInfo = {
-      id: 'google_user_id',
-      email: 'user@example.com',
-      name: 'User Name',
-      picture: 'profile_picture_url'
-    };
-
-    const normalizedEmail = normalizeEmail(userInfo.email);
-
+    const normalizedEmail = normalizeEmail(email);
     const emailStatus = await checkEmailRegistration(normalizedEmail);
 
     if (emailStatus.exists && emailStatus.role !== 'customer') {
@@ -288,17 +299,15 @@ router.post('/google/verify-token', async (req, res) => {
 
     if (existingCustomer) {
       // For existing customers, preserve manually set profile photos
-      // Only update profile_photo if it's currently null/empty
       const updateData = {
-        google_id: userInfo.id,
+        google_id: googleId,
         last_login: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
 
       // Only set Google photo if profile_photo is null/empty
-      // This preserves manually changed profile pictures
       if (!existingCustomer.profile_photo || existingCustomer.profile_photo.trim() === '') {
-        updateData.profile_photo = userInfo.picture;
+        updateData.profile_photo = photo;
       }
 
       const { data: updatedCustomer, error } = await supabaseAdmin
@@ -315,7 +324,7 @@ router.post('/google/verify-token', async (req, res) => {
       }
     } else {
       // Create new customer
-      const nameParts = userInfo.name.split(' ');
+      const nameParts = (name || '').split(' ');
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
 
@@ -324,8 +333,8 @@ router.post('/google/verify-token', async (req, res) => {
         first_name: firstName,
         last_name: lastName,
         email: normalizedEmail,
-        google_id: userInfo.id,
-        profile_photo: userInfo.picture,
+        google_id: googleId,
+        profile_photo: photo,
         role: 'customer',
         verified: true,
         created_at: new Date().toISOString(),
@@ -350,6 +359,13 @@ router.post('/google/verify-token', async (req, res) => {
 
       customer = newCustomer;
       isNewUser = true;
+      
+       // Send welcome email for new users
+       try {
+          await emailService.sendWelcomeEmail(normalizedEmail, name, 'customer');
+       } catch (emailError) {
+          console.error('Error sending welcome email:', emailError);
+       }
     }
 
     // Generate JWT token
@@ -376,10 +392,10 @@ router.post('/google/verify-token', async (req, res) => {
 
   } catch (error) {
     console.error('Google token verification error:', error);
-    res.status(500).json({
+    res.status(401).json({
       success: false,
       error: {
-        message: 'Internal server error'
+        message: 'Invalid Google token'
       }
     });
   }

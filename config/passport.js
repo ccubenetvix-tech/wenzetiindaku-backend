@@ -7,7 +7,7 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-  callbackURL: process.env.NODE_ENV === 'production' 
+  callbackURL: process.env.NODE_ENV === 'production'
     ? "https://wenzetiindaku-backend-ccubenetvix-tech2481-dp5p5n4l.leapcell.dev/api/auth/google/callback"
     : "/api/auth/google/callback"
 }, async (accessToken, refreshToken, profile, done) => {
