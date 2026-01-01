@@ -380,7 +380,7 @@ router.post('/orders', requireVerification, async (req, res) => {
         payment_status: 'pending'
       };
 
-      const { data: order, error: insertError } = await supabaseAdmin.from('orders').insert([orderPayload]).select().single();
+      const { data: order, error: insertError } = await supabaseAdmin.from('orders').insert([orderPayload]).select('*, vendor:vendors(*)').single();
       if (insertError) throw insertError;
 
       const itemsPayload = vendorItems.map(item => ({
@@ -497,7 +497,7 @@ router.post('/orders/verify-payment', requireVerification, async (req, res) => {
     // Fetch the final order to return it (Optional, but frontend expects it)
     const { data: updatedOrder } = await supabaseAdmin
       .from('orders')
-      .select(`*, order_items(*, product:products(*, vendor:vendors(*)))`)
+      .select(`*, vendor:vendors(*), order_items(*, product:products(*, vendor:vendors(*)))`)
       .eq('id', sessionId)
       .single();
 

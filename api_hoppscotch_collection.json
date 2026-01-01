@@ -6,1485 +6,22 @@
     },
     "item": [
         {
-            "name": "Auth",
-            "item": [
-                {
-                    "name": "Customer Signup",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"firstName\": \"John\",\n    \"lastName\": \"Doe\",\n    \"email\": \"john@example.com\",\n    \"password\": \"Secret123!\",\n    \"agreeToTerms\": true\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/auth/customer/signup",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "auth",
-                                "customer",
-                                "signup"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Customer Login",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "try {",
-                                    "  const body = JSON.parse(pw.response.body);",
-                                    "  if (body.success && body.data && body.data.token) {",
-                                    "    pw.env.set('token', body.data.token);",
-                                    "    console.log('Token updated successfully in Hoppscotch');",
-                                    "  }",
-                                    "} catch (e) {",
-                                    "  console.error('Failed to parse response', e);",
-                                    "}"
-                                ],
-                                "type": "text/javascript"
-                            }
-                        }
-                    ],
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"email\": \"john@example.com\",\n    \"password\": \"Secret123!\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/auth/customer/login",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "auth",
-                                "customer",
-                                "login"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Customer Verify OTP",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"email\": \"john@example.com\",\n    \"otp\": \"123456\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/auth/customer/verify-otp",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "auth",
-                                "customer",
-                                "verify-otp"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Customer Resend OTP",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"email\": \"john@example.com\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/auth/customer/resend-otp",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "auth",
-                                "customer",
-                                "resend-otp"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Vendor Signup",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"businessName\": \"Sample Store\",\n    \"businessEmail\": \"store@example.com\",\n    \"businessPhone\": \"+1234567890\",\n    \"businessWebsite\": \"https://samplestore.com\",\n    \"businessAddress\": \"123 Market Street\",\n    \"city\": \"Lusaka\",\n    \"state\": \"Lusaka Province\",\n    \"country\": \"Zambia\",\n    \"postalCode\": \"10101\",\n    \"businessType\": \"Retail\",\n    \"description\": \"We sell great products.\",\n    \"categories\": [\"electronics\", \"fashion\"],\n    \"password\": \"StrongPass123!\",\n    \"agreeToTerms\": true,\n    \"agreeToVendorTerms\": true\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/auth/vendor/signup",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "auth",
-                                "vendor",
-                                "signup"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Vendor Login",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "try {",
-                                    "  const body = JSON.parse(pw.response.body);",
-                                    "  if (body.success && body.data && body.data.token) {",
-                                    "    pw.env.set('token', body.data.token);",
-                                    "    console.log('Vendor Token updated successfully in Hoppscotch');",
-                                    "  }",
-                                    "} catch (e) {",
-                                    "  console.error('Failed to parse response', e);",
-                                    "}"
-                                ],
-                                "type": "text/javascript"
-                            }
-                        }
-                    ],
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"email\": \"store@example.com\",\n    \"password\": \"StrongPass123!\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/auth/vendor/login",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "auth",
-                                "vendor",
-                                "login"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Vendor Verify OTP",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"email\": \"store@example.com\",\n    \"otp\": \"123456\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/auth/vendor/verify-otp",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "auth",
-                                "vendor",
-                                "verify-otp"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Email Registration Status",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/auth/email-status?email=john@example.com",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "auth",
-                                "email-status"
-                            ],
-                            "query": [
-                                {
-                                    "key": "email",
-                                    "value": "john@example.com"
-                                }
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Start Google OAuth",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/auth/google",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "auth",
-                                "google"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Verify Google ID Token",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"idToken\": \"<GOOGLE_ID_TOKEN>\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/auth/google/verify-token",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "auth",
-                                "google",
-                                "verify-token"
-                            ]
-                        }
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Customer",
-            "item": [
-                {
-                    "name": "Get Profile",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/customer/profile",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "customer",
-                                "profile"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Update Profile",
-                    "request": {
-                        "method": "PUT",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"firstName\": \"Jane\",\n    \"lastName\": \"Doe\",\n    \"gender\": \"female\",\n    \"address\": \"456 Commerce Ave\",\n    \"phoneNumber\": \"+260771234567\",\n    \"dateOfBirth\": \"1995-05-10\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/customer/profile",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "customer",
-                                "profile"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "List Orders",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/customer/orders?page=1&limit=10",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "customer",
-                                "orders"
-                            ],
-                            "query": [
-                                {
-                                    "key": "page",
-                                    "value": "1"
-                                },
-                                {
-                                    "key": "limit",
-                                    "value": "10"
-                                }
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Place Order",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"paymentMethod\": \"cod\",\n    \"saveAddressToProfile\": true,\n    \"shippingAddress\": {\n        \"fullName\": \"Jane Doe\",\n        \"email\": \"jane@example.com\",\n        \"phone\": \"+260700000000\",\n        \"street1\": \"123 Market Avenue\",\n        \"city\": \"Lusaka\",\n        \"state\": \"Lusaka Province\",\n        \"postalCode\": \"10101\",\n        \"country\": \"Zambia\"\n    }\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/customer/orders",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "customer",
-                                "orders"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Get Order Details",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/customer/orders/:orderId",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "customer",
-                                "orders",
-                                ":orderId"
-                            ],
-                            "variable": [
-                                {
-                                    "key": "orderId",
-                                    "value": "<ORDER_ID>"
-                                }
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Cancel Order",
-                    "request": {
-                        "method": "PUT",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"cancellationReason\": \"Changed my mind\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/customer/orders/:orderId/cancel",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "customer",
-                                "orders",
-                                ":orderId",
-                                "cancel"
-                            ],
-                            "variable": [
-                                {
-                                    "key": "orderId",
-                                    "value": "<ORDER_ID>"
-                                }
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "List Wishlist",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/customer/wishlist",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "customer",
-                                "wishlist"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Add to Wishlist",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"productId\": \"<PRODUCT_ID>\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/customer/wishlist",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "customer",
-                                "wishlist"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Remove from Wishlist",
-                    "request": {
-                        "method": "DELETE",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/customer/wishlist/:productId",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "customer",
-                                "wishlist",
-                                ":productId"
-                            ],
-                            "variable": [
-                                {
-                                    "key": "productId",
-                                    "value": "<PRODUCT_ID>"
-                                }
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Get Addresses",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/customer/addresses",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "customer",
-                                "addresses"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Create Address",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"label\": \"Home\",\n    \"fullName\": \"Jane Doe\",\n    \"email\": \"jane@example.com\",\n    \"phone\": \"+26077000000\",\n    \"street1\": \"123 Main St\",\n    \"city\": \"Lusaka\",\n    \"state\": \"Lusaka\",\n    \"postalCode\": \"10101\",\n    \"country\": \"Zambia\",\n    \"isDefault\": true\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/customer/addresses",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "customer",
-                                "addresses"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Update Address",
-                    "request": {
-                        "method": "PUT",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"street1\": \"456 New St\",\n    \"isDefault\": true\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/customer/addresses/:addressId",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "customer",
-                                "addresses",
-                                ":addressId"
-                            ],
-                            "variable": [
-                                {
-                                    "key": "addressId",
-                                    "value": "<ADDRESS_ID>"
-                                }
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Set Default Address",
-                    "request": {
-                        "method": "PUT",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/customer/addresses/:addressId/set-default",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "customer",
-                                "addresses",
-                                ":addressId",
-                                "set-default"
-                            ],
-                            "variable": [
-                                {
-                                    "key": "addressId",
-                                    "value": "<ADDRESS_ID>"
-                                }
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Delete Address",
-                    "request": {
-                        "method": "DELETE",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/customer/addresses/:addressId",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "customer",
-                                "addresses",
-                                ":addressId"
-                            ],
-                            "variable": [
-                                {
-                                    "key": "addressId",
-                                    "value": "<ADDRESS_ID>"
-                                }
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Fix Registration Method",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"registrationMethod\": \"google\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/customer/fix-registration-method",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "customer",
-                                "fix-registration-method"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Delete Account",
-                    "request": {
-                        "method": "DELETE",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"confirmation\": \"DELETE\",\n    \"password\": \"Secret123!\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/customer/delete-account",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "customer",
-                                "delete-account"
-                            ]
-                        }
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Cart",
-            "item": [
-                {
-                    "name": "Get Cart",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/cart",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "cart"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Add Item",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"productId\": \"<PRODUCT_ID>\",\n    \"quantity\": 1\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/cart",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "cart"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Update Item Quantity",
-                    "request": {
-                        "method": "PUT",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"quantity\": 2\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/cart/:itemId",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "cart",
-                                ":itemId"
-                            ],
-                            "variable": [
-                                {
-                                    "key": "itemId",
-                                    "value": "<CART_ITEM_ID>"
-                                }
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Remove Item",
-                    "request": {
-                        "method": "DELETE",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/cart/:itemId",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "cart",
-                                ":itemId"
-                            ],
-                            "variable": [
-                                {
-                                    "key": "itemId",
-                                    "value": "<CART_ITEM_ID>"
-                                }
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Clear Cart",
-                    "request": {
-                        "method": "DELETE",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/cart",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "cart"
-                            ]
-                        }
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Products",
-            "item": [
-                {
-                    "name": "List Products",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/products?category=electronics&search=phone&page=1&limit=12",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "products"
-                            ],
-                            "query": [
-                                {
-                                    "key": "category",
-                                    "value": "electronics"
-                                },
-                                {
-                                    "key": "search",
-                                    "value": "phone"
-                                },
-                                {
-                                    "key": "page",
-                                    "value": "1"
-                                },
-                                {
-                                    "key": "limit",
-                                    "value": "12"
-                                }
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "List Vendors",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/products/vendors",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "products",
-                                "vendors"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Get Vendor Catalogue",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/products/vendors/:vendorId",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "products",
-                                "vendors",
-                                ":vendorId"
-                            ],
-                            "variable": [
-                                {
-                                    "key": "vendorId",
-                                    "value": "<VENDOR_ID>"
-                                }
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Get Product Details",
-                    "request": {
-                        "method": "GET",
-                        "header": [],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/products/:productId",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "products",
-                                ":productId"
-                            ],
-                            "variable": [
-                                {
-                                    "key": "productId",
-                                    "value": "<PRODUCT_ID>"
-                                }
-                            ]
-                        }
-                    }
-                }
-            ]
-        },
-        {
-            "name": "Vendor",
-            "item": [
-                {
-                    "name": "Get Profile",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/vendor/profile",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "vendor",
-                                "profile"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Update Profile",
-                    "request": {
-                        "method": "PUT",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"businessPhone\": \"+26077000000\",\n    \"description\": \"Updated description\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/vendor/profile",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "vendor",
-                                "profile"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Upload Profile Photo",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"fileBase64\": \"data:image/jpeg;base64,...\",\n    \"fileName\": \"profile.jpg\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/vendor/profile/photo",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "vendor",
-                                "profile",
-                                "photo"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Dashboard Metrics",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/vendor/dashboard",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "vendor",
-                                "dashboard"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "List My Products",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/vendor/products?page=1&limit=20",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "vendor",
-                                "products"
-                            ],
-                            "query": [
-                                {
-                                    "key": "page",
-                                    "value": "1"
-                                },
-                                {
-                                    "key": "limit",
-                                    "value": "20"
-                                }
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Create Product",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"name\": \"Sample Product\",\n    \"description\": \"Great item\",\n    \"price\": 199.99,\n    \"category\": \"electronics\",\n    \"images\": [\"https://example.com/image1.jpg\"],\n    \"stock\": 25,\n    \"status\": \"active\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/vendor/products",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "vendor",
-                                "products"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Update Product",
-                    "request": {
-                        "method": "PUT",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"name\": \"Updated Product\",\n    \"price\": 179.99,\n    \"stock\": 30,\n    \"status\": \"active\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/vendor/products/:productId",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "vendor",
-                                "products",
-                                ":productId"
-                            ],
-                            "variable": [
-                                {
-                                    "key": "productId",
-                                    "value": "<PRODUCT_ID>"
-                                }
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Upload Product Image",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"fileBase64\": \"data:image/jpeg;base64,...\",\n    \"fileName\": \"product.jpg\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/vendor/products/:productId/image",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "vendor",
-                                "products",
-                                ":productId",
-                                "image"
-                            ],
-                            "variable": [
-                                {
-                                    "key": "productId",
-                                    "value": "<PRODUCT_ID>"
-                                }
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Delete Product",
-                    "request": {
-                        "method": "DELETE",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/vendor/products/:productId",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "vendor",
-                                "products",
-                                ":productId"
-                            ],
-                            "variable": [
-                                {
-                                    "key": "productId",
-                                    "value": "<PRODUCT_ID>"
-                                }
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "List Orders",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/vendor/orders?page=1&limit=10&status=pending",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "vendor",
-                                "orders"
-                            ],
-                            "query": [
-                                {
-                                    "key": "page",
-                                    "value": "1"
-                                },
-                                {
-                                    "key": "limit",
-                                    "value": "10"
-                                },
-                                {
-                                    "key": "status",
-                                    "value": "pending"
-                                }
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Update Order Status",
-                    "request": {
-                        "method": "PUT",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"status\": \"shipped\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/vendor/orders/:orderId/status",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "vendor",
-                                "orders",
-                                ":orderId",
-                                "status"
-                            ],
-                            "variable": [
-                                {
-                                    "key": "orderId",
-                                    "value": "<ORDER_ID>"
-                                }
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Delete Account",
-                    "request": {
-                        "method": "DELETE",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"confirmation\": \"DELETE\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/vendor/delete-account",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "vendor",
-                                "delete-account"
-                            ]
-                        }
-                    }
-                }
-            ]
-        },
-        {
             "name": "Admin",
             "item": [
                 {
-                    "name": "Admin Login",
-                    "event": [
-                        {
-                            "listen": "test",
-                            "script": {
-                                "exec": [
-                                    "try {",
-                                    "  const body = JSON.parse(pw.response.body);",
-                                    "  if (body.success && body.data && body.data.token) {",
-                                    "    pw.env.set('token', body.data.token);",
-                                    "    console.log('Admin Token updated successfully in Hoppscotch');",
-                                    "  }",
-                                    "} catch (e) {",
-                                    "  console.error('Failed to parse response', e);",
-                                    "}"
-                                ],
-                                "type": "text/javascript"
-                            }
-                        }
-                    ],
+                    "name": "POST /api/admin/login",
                     "request": {
                         "method": "POST",
                         "header": [
                             {
                                 "key": "Content-Type",
                                 "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
                             }
                         ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"email\": \"admin@example.com\",\n    \"password\": \"AdminSecret123!\"\n}"
-                        },
                         "url": {
                             "raw": "{{baseUrl}}/api/admin/login",
                             "host": [
@@ -1495,61 +32,22 @@
                                 "admin",
                                 "login"
                             ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
                         }
                     }
                 },
                 {
-                    "name": "Dashboard Metrics (Admin)",
+                    "name": "GET /api/admin/vendors",
                     "request": {
                         "method": "GET",
                         "header": [
                             {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/admin/dashboard",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "admin",
-                                "dashboard"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Order Stats (Admin)",
-                    "request": {
-                        "method": "GET",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/admin/orders/stats",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "admin",
-                                "orders",
-                                "stats"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "List Vendors",
-                    "request": {
-                        "method": "GET",
-                        "header": [
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
                             {
                                 "key": "Authorization",
                                 "value": "Bearer <<token>>"
@@ -1569,10 +67,14 @@
                     }
                 },
                 {
-                    "name": "Get Vendor Details",
+                    "name": "GET /api/admin/vendors/:vendorId",
                     "request": {
                         "method": "GET",
                         "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
                             {
                                 "key": "Authorization",
                                 "value": "Bearer <<token>>"
@@ -1592,17 +94,21 @@
                             "variable": [
                                 {
                                     "key": "vendorId",
-                                    "value": "<VENDOR_ID>"
+                                    "value": "<VENDORID>"
                                 }
                             ]
                         }
                     }
                 },
                 {
-                    "name": "Approve Vendor",
+                    "name": "PUT /api/admin/vendors/:vendorId/approve",
                     "request": {
                         "method": "PUT",
                         "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
                             {
                                 "key": "Authorization",
                                 "value": "Bearer <<token>>"
@@ -1623,30 +129,30 @@
                             "variable": [
                                 {
                                     "key": "vendorId",
-                                    "value": "<VENDOR_ID>"
+                                    "value": "<VENDORID>"
                                 }
                             ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
                         }
                     }
                 },
                 {
-                    "name": "Reject Vendor",
+                    "name": "PUT /api/admin/vendors/:vendorId/reject",
                     "request": {
                         "method": "PUT",
                         "header": [
                             {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
-                            {
                                 "key": "Content-Type",
                                 "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
                             }
                         ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"reason\": \"Incomplete documentation\"\n}"
-                        },
                         "url": {
                             "raw": "{{baseUrl}}/api/admin/vendors/:vendorId/reject",
                             "host": [
@@ -1662,92 +168,131 @@
                             "variable": [
                                 {
                                     "key": "vendorId",
-                                    "value": "<VENDOR_ID>"
+                                    "value": "<VENDORID>"
                                 }
                             ]
-                        }
-                    }
-                },
-                {
-                    "name": "Update Vendor (Admin)",
-                    "request": {
-                        "method": "PUT",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
-                            {
-                                "key": "Content-Type",
-                                "value": "application/json"
-                            }
-                        ],
+                        },
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"businessName\": \"Updated Name\"\n}"
-                        },
-                        "url": {
-                            "raw": "{{baseUrl}}/api/admin/vendors/:vendorId",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "admin",
-                                "vendors",
-                                ":vendorId"
-                            ],
-                            "variable": [
-                                {
-                                    "key": "vendorId",
-                                    "value": "<VENDOR_ID>"
-                                }
-                            ]
+                            "raw": "{\n    \n}"
                         }
                     }
                 },
                 {
-                    "name": "Delete Vendor",
-                    "request": {
-                        "method": "DELETE",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/admin/vendors/:vendorId",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "admin",
-                                "vendors",
-                                ":vendorId"
-                            ],
-                            "variable": [
-                                {
-                                    "key": "vendorId",
-                                    "value": "<VENDOR_ID>"
-                                }
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "List Products (Admin)",
+                    "name": "GET /api/admin/dashboard",
                     "request": {
                         "method": "GET",
                         "header": [
                             {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
                                 "key": "Authorization",
                                 "value": "Bearer <<token>>"
                             }
                         ],
                         "url": {
-                            "raw": "{{baseUrl}}/api/admin/products?page=1&limit=20&status=active",
+                            "raw": "{{baseUrl}}/api/admin/dashboard",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "admin",
+                                "dashboard"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "PUT /api/admin/vendors/:vendorId",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/admin/vendors/:vendorId",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "admin",
+                                "vendors",
+                                ":vendorId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "vendorId",
+                                    "value": "<VENDORID>"
+                                }
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "DELETE /api/admin/vendors/:vendorId",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/admin/vendors/:vendorId",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "admin",
+                                "vendors",
+                                ":vendorId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "vendorId",
+                                    "value": "<VENDORID>"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/admin/products",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/admin/products",
                             "host": [
                                 "{{baseUrl}}"
                             ],
@@ -1755,42 +300,24 @@
                                 "api",
                                 "admin",
                                 "products"
-                            ],
-                            "query": [
-                                {
-                                    "key": "page",
-                                    "value": "1"
-                                },
-                                {
-                                    "key": "limit",
-                                    "value": "20"
-                                },
-                                {
-                                    "key": "status",
-                                    "value": "active"
-                                }
                             ]
                         }
                     }
                 },
                 {
-                    "name": "Update Product (Admin)",
+                    "name": "PUT /api/admin/products/:productId",
                     "request": {
                         "method": "PUT",
                         "header": [
                             {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
-                            {
                                 "key": "Content-Type",
                                 "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
                             }
                         ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"status\": \"active\"\n}"
-                        },
                         "url": {
                             "raw": "{{baseUrl}}/api/admin/products/:productId",
                             "host": [
@@ -1805,18 +332,26 @@
                             "variable": [
                                 {
                                     "key": "productId",
-                                    "value": "<PRODUCT_ID>"
+                                    "value": "<PRODUCTID>"
                                 }
                             ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
                         }
                     }
                 },
                 {
-                    "name": "Delete Product (Admin)",
+                    "name": "DELETE /api/admin/products/:productId",
                     "request": {
                         "method": "DELETE",
                         "header": [
                             {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
                                 "key": "Authorization",
                                 "value": "Bearer <<token>>"
                             }
@@ -1835,30 +370,26 @@
                             "variable": [
                                 {
                                     "key": "productId",
-                                    "value": "<PRODUCT_ID>"
+                                    "value": "<PRODUCTID>"
                                 }
                             ]
                         }
                     }
                 },
                 {
-                    "name": "Red Mark Product",
+                    "name": "PUT /api/admin/products/:productId/red-mark",
                     "request": {
                         "method": "PUT",
                         "header": [
                             {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
-                            {
                                 "key": "Content-Type",
                                 "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
                             }
                         ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"reason\": \"Policy violation\"\n}"
-                        },
                         "url": {
                             "raw": "{{baseUrl}}/api/admin/products/:productId/red-mark",
                             "host": [
@@ -1874,24 +405,32 @@
                             "variable": [
                                 {
                                     "key": "productId",
-                                    "value": "<PRODUCT_ID>"
+                                    "value": "<PRODUCTID>"
                                 }
                             ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
                         }
                     }
                 },
                 {
-                    "name": "List Customers",
+                    "name": "GET /api/admin/customers",
                     "request": {
                         "method": "GET",
                         "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
                             {
                                 "key": "Authorization",
                                 "value": "Bearer <<token>>"
                             }
                         ],
                         "url": {
-                            "raw": "{{baseUrl}}/api/admin/customers?page=1&limit=20",
+                            "raw": "{{baseUrl}}/api/admin/customers",
                             "host": [
                                 "{{baseUrl}}"
                             ],
@@ -1899,25 +438,19 @@
                                 "api",
                                 "admin",
                                 "customers"
-                            ],
-                            "query": [
-                                {
-                                    "key": "page",
-                                    "value": "1"
-                                },
-                                {
-                                    "key": "limit",
-                                    "value": "20"
-                                }
                             ]
                         }
                     }
                 },
                 {
-                    "name": "Get Customer Details",
+                    "name": "GET /api/admin/customers/:customerId",
                     "request": {
                         "method": "GET",
                         "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
                             {
                                 "key": "Authorization",
                                 "value": "Bearer <<token>>"
@@ -1937,18 +470,22 @@
                             "variable": [
                                 {
                                     "key": "customerId",
-                                    "value": "<CUSTOMER_ID>"
+                                    "value": "<CUSTOMERID>"
                                 }
                             ]
                         }
                     }
                 },
                 {
-                    "name": "Delete Customer",
+                    "name": "DELETE /api/admin/customers/:customerId",
                     "request": {
                         "method": "DELETE",
                         "header": [
                             {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
                                 "key": "Authorization",
                                 "value": "Bearer <<token>>"
                             }
@@ -1967,24 +504,28 @@
                             "variable": [
                                 {
                                     "key": "customerId",
-                                    "value": "<CUSTOMER_ID>"
+                                    "value": "<CUSTOMERID>"
                                 }
                             ]
                         }
                     }
                 },
                 {
-                    "name": "List Orders (Admin)",
+                    "name": "GET /api/admin/orders",
                     "request": {
                         "method": "GET",
                         "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
                             {
                                 "key": "Authorization",
                                 "value": "Bearer <<token>>"
                             }
                         ],
                         "url": {
-                            "raw": "{{baseUrl}}/api/admin/orders?page=1&limit=20",
+                            "raw": "{{baseUrl}}/api/admin/orders",
                             "host": [
                                 "{{baseUrl}}"
                             ],
@@ -1992,25 +533,19 @@
                                 "api",
                                 "admin",
                                 "orders"
-                            ],
-                            "query": [
-                                {
-                                    "key": "page",
-                                    "value": "1"
-                                },
-                                {
-                                    "key": "limit",
-                                    "value": "20"
-                                }
                             ]
                         }
                     }
                 },
                 {
-                    "name": "Get Order Details (Admin)",
+                    "name": "GET /api/admin/orders/:orderId",
                     "request": {
                         "method": "GET",
                         "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
                             {
                                 "key": "Authorization",
                                 "value": "Bearer <<token>>"
@@ -2030,30 +565,26 @@
                             "variable": [
                                 {
                                     "key": "orderId",
-                                    "value": "<ORDER_ID>"
+                                    "value": "<ORDERID>"
                                 }
                             ]
                         }
                     }
                 },
                 {
-                    "name": "Update Order Status (Admin)",
+                    "name": "PUT /api/admin/orders/:orderId/status",
                     "request": {
                         "method": "PUT",
                         "header": [
                             {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
-                            {
                                 "key": "Content-Type",
                                 "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
                             }
                         ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"status\": \"completed\",\n    \"notes\": \"Admin approved\"\n}"
-                        },
                         "url": {
                             "raw": "{{baseUrl}}/api/admin/orders/:orderId/status",
                             "host": [
@@ -2069,30 +600,30 @@
                             "variable": [
                                 {
                                     "key": "orderId",
-                                    "value": "<ORDER_ID>"
+                                    "value": "<ORDERID>"
                                 }
                             ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
                         }
                     }
                 },
                 {
-                    "name": "Update Payment Status (Admin)",
+                    "name": "PUT /api/admin/orders/:orderId/payment-status",
                     "request": {
                         "method": "PUT",
                         "header": [
                             {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
-                            {
                                 "key": "Content-Type",
                                 "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
                             }
                         ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"paymentStatus\": \"paid\"\n}"
-                        },
                         "url": {
                             "raw": "{{baseUrl}}/api/admin/orders/:orderId/payment-status",
                             "host": [
@@ -2108,8 +639,704 @@
                             "variable": [
                                 {
                                     "key": "orderId",
-                                    "value": "<ORDER_ID>"
+                                    "value": "<ORDERID>"
                                 }
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/admin/orders/stats",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/admin/orders/stats",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "admin",
+                                "orders",
+                                "stats"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/admin/vendors/:vendorId/revenue",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/admin/vendors/:vendorId/revenue",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "admin",
+                                "vendors",
+                                ":vendorId",
+                                "revenue"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "vendorId",
+                                    "value": "<VENDORID>"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/admin/customers/:customerId/orders",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/admin/customers/:customerId/orders",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "admin",
+                                "customers",
+                                ":customerId",
+                                "orders"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "customerId",
+                                    "value": "<CUSTOMERID>"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/admin/customers/:customerId/reviews",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/admin/customers/:customerId/reviews",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "admin",
+                                "customers",
+                                ":customerId",
+                                "reviews"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "customerId",
+                                    "value": "<CUSTOMERID>"
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Auth",
+            "item": [
+                {
+                    "name": "POST /api/auth/customer/signup",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/customer/signup",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "customer",
+                                "signup"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "POST /api/auth/customer/verify-otp",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/customer/verify-otp",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "customer",
+                                "verify-otp"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "POST /api/auth/customer/login",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/customer/login",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "customer",
+                                "login"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "POST /api/auth/customer/resend-otp",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/customer/resend-otp",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "customer",
+                                "resend-otp"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "POST /api/auth/vendor/signup",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/vendor/signup",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "vendor",
+                                "signup"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "POST /api/auth/vendor/verify-otp",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/vendor/verify-otp",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "vendor",
+                                "verify-otp"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "POST /api/auth/vendor/login",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/vendor/login",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "vendor",
+                                "login"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "POST /api/auth/vendor/resend-otp",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/vendor/resend-otp",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "vendor",
+                                "resend-otp"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/auth/me",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/me",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "me"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/auth/email-status",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/email-status",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "email-status"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/auth/google",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/google",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "google"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/auth/google/callback",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/google/callback",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "google",
+                                "callback"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "POST /api/auth/google/verify-token",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/auth/google/verify-token",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "auth",
+                                "google",
+                                "verify-token"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Cart",
+            "item": [
+                {
+                    "name": "GET /api/cart/",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/cart/",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "cart"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "POST /api/cart/",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/cart/",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "cart"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "PUT /api/cart/:itemId",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/cart/:itemId",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "cart",
+                                ":itemId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "itemId",
+                                    "value": "<ITEMID>"
+                                }
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "DELETE /api/cart/:itemId",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/cart/:itemId",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "cart",
+                                ":itemId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "itemId",
+                                    "value": "<ITEMID>"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "DELETE /api/cart/",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/cart/",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "cart"
                             ]
                         }
                     }
@@ -2120,46 +1347,19 @@
             "name": "Chat",
             "item": [
                 {
-                    "name": "List Conversations",
+                    "name": "GET /api/chat/conversations",
                     "request": {
                         "method": "GET",
                         "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            }
-                        ],
-                        "url": {
-                            "raw": "{{baseUrl}}/api/chat/conversations",
-                            "host": [
-                                "{{baseUrl}}"
-                            ],
-                            "path": [
-                                "api",
-                                "chat",
-                                "conversations"
-                            ]
-                        }
-                    }
-                },
-                {
-                    "name": "Start Conversation",
-                    "request": {
-                        "method": "POST",
-                        "header": [
-                            {
-                                "key": "Authorization",
-                                "value": "Bearer <<token>>"
-                            },
                             {
                                 "key": "Content-Type",
                                 "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
                             }
                         ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"vendorId\": \"<VENDOR_ID>\"\n}"
-                        },
                         "url": {
                             "raw": "{{baseUrl}}/api/chat/conversations",
                             "host": [
@@ -2174,10 +1374,14 @@
                     }
                 },
                 {
-                    "name": "Get Messages",
+                    "name": "GET /api/chat/conversations/:conversationId/messages",
                     "request": {
                         "method": "GET",
                         "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
                             {
                                 "key": "Authorization",
                                 "value": "Bearer <<token>>"
@@ -2198,30 +1402,57 @@
                             "variable": [
                                 {
                                     "key": "conversationId",
-                                    "value": "<CONVERSATION_ID>"
+                                    "value": "<CONVERSATIONID>"
                                 }
                             ]
                         }
                     }
                 },
                 {
-                    "name": "Send Message",
+                    "name": "POST /api/chat/conversations",
                     "request": {
                         "method": "POST",
                         "header": [
                             {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
                                 "key": "Authorization",
                                 "value": "Bearer <<token>>"
-                            },
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/chat/conversations",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "chat",
+                                "conversations"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "POST /api/chat/conversations/:conversationId/messages",
+                    "request": {
+                        "method": "POST",
+                        "header": [
                             {
                                 "key": "Content-Type",
                                 "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
                             }
                         ],
-                        "body": {
-                            "mode": "raw",
-                            "raw": "{\n    \"content\": \"Hello, is this available?\"\n}"
-                        },
                         "url": {
                             "raw": "{{baseUrl}}/api/chat/conversations/:conversationId/messages",
                             "host": [
@@ -2237,48 +1468,70 @@
                             "variable": [
                                 {
                                     "key": "conversationId",
-                                    "value": "<CONVERSATION_ID>"
+                                    "value": "<CONVERSATIONID>"
                                 }
                             ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
                         }
                     }
                 },
                 {
-                    "name": "Mark Message Read",
+                    "name": "PUT /api/chat/conversations/:conversationId/messages/:messageId/read",
                     "request": {
                         "method": "PUT",
                         "header": [
                             {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
                                 "key": "Authorization",
                                 "value": "Bearer <<token>>"
                             }
                         ],
                         "url": {
-                            "raw": "{{baseUrl}}/api/chat/messages/:messageId/read",
+                            "raw": "{{baseUrl}}/api/chat/conversations/:conversationId/messages/:messageId/read",
                             "host": [
                                 "{{baseUrl}}"
                             ],
                             "path": [
                                 "api",
                                 "chat",
+                                "conversations",
+                                ":conversationId",
                                 "messages",
                                 ":messageId",
                                 "read"
                             ],
                             "variable": [
                                 {
+                                    "key": "conversationId",
+                                    "value": "<CONVERSATIONID>"
+                                },
+                                {
                                     "key": "messageId",
-                                    "value": "<MESSAGE_ID>"
+                                    "value": "<MESSAGEID>"
                                 }
                             ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
                         }
                     }
                 },
                 {
-                    "name": "Mark Conversation Read",
+                    "name": "PUT /api/chat/conversations/:conversationId/read",
                     "request": {
                         "method": "PUT",
                         "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
                             {
                                 "key": "Authorization",
                                 "value": "Bearer <<token>>"
@@ -2299,17 +1552,25 @@
                             "variable": [
                                 {
                                     "key": "conversationId",
-                                    "value": "<CONVERSATION_ID>"
+                                    "value": "<CONVERSATIONID>"
                                 }
                             ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
                         }
                     }
                 },
                 {
-                    "name": "Unread Count",
+                    "name": "GET /api/chat/unread-count",
                     "request": {
                         "method": "GET",
                         "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
                             {
                                 "key": "Authorization",
                                 "value": "Bearer <<token>>"
@@ -2331,28 +1592,817 @@
             ]
         },
         {
-            "name": "Reviews",
+            "name": "Customer",
             "item": [
                 {
-                    "name": "Create Review",
+                    "name": "GET /api/customer/profile",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/customer/profile",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "customer",
+                                "profile"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "PUT /api/customer/profile",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/customer/profile",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "customer",
+                                "profile"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "POST /api/customer/orders",
                     "request": {
                         "method": "POST",
                         "header": [
                             {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
                                 "key": "Authorization",
                                 "value": "Bearer <<token>>"
-                            },
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/customer/orders",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "customer",
+                                "orders"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "POST /api/customer/orders/verify-payment",
+                    "request": {
+                        "method": "POST",
+                        "header": [
                             {
                                 "key": "Content-Type",
                                 "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
                             }
                         ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/customer/orders/verify-payment",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "customer",
+                                "orders",
+                                "verify-payment"
+                            ]
+                        },
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"productId\": \"<PRODUCT_ID>\",\n    \"rating\": 5,\n    \"comment\": \"Great product!\"\n}"
-                        },
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/customer/orders",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
                         "url": {
-                            "raw": "{{baseUrl}}/api/reviews",
+                            "raw": "{{baseUrl}}/api/customer/orders",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "customer",
+                                "orders"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/customer/orders/:orderId",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/customer/orders/:orderId",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "customer",
+                                "orders",
+                                ":orderId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "orderId",
+                                    "value": "<ORDERID>"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "PUT /api/customer/orders/:orderId/cancel",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/customer/orders/:orderId/cancel",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "customer",
+                                "orders",
+                                ":orderId",
+                                "cancel"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "orderId",
+                                    "value": "<ORDERID>"
+                                }
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/customer/wishlist",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/customer/wishlist",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "customer",
+                                "wishlist"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "POST /api/customer/wishlist",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/customer/wishlist",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "customer",
+                                "wishlist"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "DELETE /api/customer/wishlist/:productId",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/customer/wishlist/:productId",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "customer",
+                                "wishlist",
+                                ":productId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "productId",
+                                    "value": "<PRODUCTID>"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "DELETE /api/customer/delete-account",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/customer/delete-account",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "customer",
+                                "delete-account"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "POST /api/customer/fix-registration-method",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/customer/fix-registration-method",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "customer",
+                                "fix-registration-method"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/customer/addresses",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/customer/addresses",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "customer",
+                                "addresses"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "POST /api/customer/addresses",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/customer/addresses",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "customer",
+                                "addresses"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "PUT /api/customer/addresses/:addressId",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/customer/addresses/:addressId",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "customer",
+                                "addresses",
+                                ":addressId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "addressId",
+                                    "value": "<ADDRESSID>"
+                                }
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "DELETE /api/customer/addresses/:addressId",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/customer/addresses/:addressId",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "customer",
+                                "addresses",
+                                ":addressId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "addressId",
+                                    "value": "<ADDRESSID>"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "PUT /api/customer/addresses/:addressId/set-default",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/customer/addresses/:addressId/set-default",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "customer",
+                                "addresses",
+                                ":addressId",
+                                "set-default"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "addressId",
+                                    "value": "<ADDRESSID>"
+                                }
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Payment",
+            "item": [
+                {
+                    "name": "POST /api/payment/initiate",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/payment/initiate",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "payment",
+                                "initiate"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/payment/maishapay/callback*",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/payment/maishapay/callback*",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "payment",
+                                "maishapay",
+                                "callback*"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "POST /api/payment/maishapay/ipn",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/payment/maishapay/ipn",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "payment",
+                                "maishapay",
+                                "ipn"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Products",
+            "item": [
+                {
+                    "name": "GET /api/products/",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/products/",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "products"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/products/vendors",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/products/vendors",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "products",
+                                "vendors"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/products/vendors/:vendorId",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/products/vendors/:vendorId",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "products",
+                                "vendors",
+                                ":vendorId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "vendorId",
+                                    "value": "<VENDORID>"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/products/featured",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/products/featured",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "products",
+                                "featured"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/products/:productId",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/products/:productId",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "products",
+                                ":productId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "productId",
+                                    "value": "<PRODUCTID>"
+                                }
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Reviews",
+            "item": [
+                {
+                    "name": "POST /api/reviews/",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/reviews/",
                             "host": [
                                 "{{baseUrl}}"
                             ],
@@ -2360,14 +2410,97 @@
                                 "api",
                                 "reviews"
                             ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
                         }
                     }
                 },
                 {
-                    "name": "Get Product Reviews",
+                    "name": "PUT /api/reviews/:reviewId",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/reviews/:reviewId",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "reviews",
+                                ":reviewId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "reviewId",
+                                    "value": "<REVIEWID>"
+                                }
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "DELETE /api/reviews/:reviewId",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/reviews/:reviewId",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "reviews",
+                                ":reviewId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "reviewId",
+                                    "value": "<REVIEWID>"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/reviews/product/:productId",
                     "request": {
                         "method": "GET",
-                        "header": [],
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
                         "url": {
                             "raw": "{{baseUrl}}/api/reviews/product/:productId",
                             "host": [
@@ -2382,17 +2515,21 @@
                             "variable": [
                                 {
                                     "key": "productId",
-                                    "value": "<PRODUCT_ID>"
+                                    "value": "<PRODUCTID>"
                                 }
                             ]
                         }
                     }
                 },
                 {
-                    "name": "Get Customer Reviews",
+                    "name": "GET /api/reviews/customer",
                     "request": {
                         "method": "GET",
                         "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
                             {
                                 "key": "Authorization",
                                 "value": "Bearer <<token>>"
@@ -2410,20 +2547,453 @@
                             ]
                         }
                     }
+                },
+                {
+                    "name": "GET /api/reviews/vendor",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/reviews/vendor",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "reviews",
+                                "vendor"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/reviews/can-review/:productId",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/reviews/can-review/:productId",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "reviews",
+                                "can-review",
+                                ":productId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "productId",
+                                    "value": "<PRODUCTID>"
+                                }
+                            ]
+                        }
+                    }
                 }
             ]
-        }
-    ],
-    "variable": [
-        {
-            "key": "baseUrl",
-            "value": "http://localhost:5000",
-            "type": "string"
         },
         {
-            "key": "token",
-            "value": "",
-            "type": "string"
+            "name": "Vendor",
+            "item": [
+                {
+                    "name": "POST /api/vendor/profile/photo",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/vendor/profile/photo",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "vendor",
+                                "profile",
+                                "photo"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "POST /api/vendor/products/:productId/image",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/vendor/products/:productId/image",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "vendor",
+                                "products",
+                                ":productId",
+                                "image"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "productId",
+                                    "value": "<PRODUCTID>"
+                                }
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/vendor/profile",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/vendor/profile",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "vendor",
+                                "profile"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "PUT /api/vendor/profile",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/vendor/profile",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "vendor",
+                                "profile"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/vendor/dashboard",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/vendor/dashboard",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "vendor",
+                                "dashboard"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/vendor/products",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/vendor/products",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "vendor",
+                                "products"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "POST /api/vendor/products",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/vendor/products",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "vendor",
+                                "products"
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "PUT /api/vendor/products/:productId",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/vendor/products/:productId",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "vendor",
+                                "products",
+                                ":productId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "productId",
+                                    "value": "<PRODUCTID>"
+                                }
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "DELETE /api/vendor/products/:productId",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/vendor/products/:productId",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "vendor",
+                                "products",
+                                ":productId"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "productId",
+                                    "value": "<PRODUCTID>"
+                                }
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "GET /api/vendor/orders",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/vendor/orders",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "vendor",
+                                "orders"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "PUT /api/vendor/orders/:orderId/status",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/vendor/orders/:orderId/status",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "vendor",
+                                "orders",
+                                ":orderId",
+                                "status"
+                            ],
+                            "variable": [
+                                {
+                                    "key": "orderId",
+                                    "value": "<ORDERID>"
+                                }
+                            ]
+                        },
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n    \n}"
+                        }
+                    }
+                },
+                {
+                    "name": "DELETE /api/vendor/delete-account",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer <<token>>"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{baseUrl}}/api/vendor/delete-account",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "api",
+                                "vendor",
+                                "delete-account"
+                            ]
+                        }
+                    }
+                }
+            ]
         }
     ]
 }
