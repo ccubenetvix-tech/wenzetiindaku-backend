@@ -1430,6 +1430,12 @@ router.put('/orders/:orderId/status', protect, authorize('admin'), async (req, r
       });
     }
 
+    // Restore Inventory if cancelled
+    if (status === 'cancelled' && (existingOrder.status || '').toLowerCase() !== 'cancelled') {
+      const OrderService = require('../services/orderService');
+      await OrderService.restoreInventory(orderId);
+    }
+
     // TODO: Send email notifications if needed
 
     res.json({

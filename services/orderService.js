@@ -55,10 +55,11 @@ class OrderService {
         if (paymentMethod === 'online' && order.payment_status !== 'paid') {
             updatePayload.status = 'processing';
             updatePayload.payment_status = 'paid';
-        } else if (paymentMethod === 'cod' && order.status === 'pending') {
-            // COD logic usually keeps it pending or confirmed? 
-            // Existing route logic set COD status to 'pending' initially.
-            // Here we might verify it.
+        } else if (paymentMethod === 'cod') {
+            // For COD, we confirm the order immediately
+            if (order.status === 'pending') {
+                updatePayload.status = 'confirmed';
+            }
         }
 
         // Perform update if needed
@@ -70,7 +71,28 @@ class OrderService {
             if (updateError) console.error('[OrderService] Status update failed:', updateError);
         }
 
-        // 4. Clear Cart (Customer's cart for these items)
+        // 4. Update Inventory (Deduct Stock)
+        if (order.order_items && order.order_items.length > 0) {
+            console.log('[OrderService] Updating inventory for order:', orderId);
+            const inventoryUpdates = order.order_items.map(async (item) => {
+                if (item.product) {
+                    const newStock = Math.max(0, (item.product.stock || 0) - item.quantity);
+
+                    const { error: stockError } = await supabaseAdmin
+                        .from('products')
+                        .update({ stock: newStock })
+                        .eq('id', item.product_id);
+
+                    if (stockError) {
+                        console.error(`[OrderService] Failed to update stock for product ${item.product_id}:`, stockError);
+                    }
+                }
+            });
+
+            await Promise.allSettled(inventoryUpdates);
+        }
+
+        // 5. Clear Cart (Customer's cart for these items)
         const customerId = order.customer_id;
         const productIds = order.order_items.map(i => i.product_id);
         if (productIds.length > 0) {
@@ -140,6 +162,49 @@ class OrderService {
 
         await Promise.allSettled(emailNotifications);
         return true;
+    }
+
+    /**
+     * Restore inventory for a cancelled order
+     * @param {string} orderId 
+     */
+    static async restoreInventory(orderId) {
+        console.log(`[OrderService] Restoring inventory for order ${orderId}`);
+
+        // Fetch Order Items
+        const { data: orderItems, error } = await supabaseAdmin
+            .from('order_items')
+            .select(`
+                product_id,
+                quantity,
+                product:products (stock)
+            `)
+            .eq('order_id', orderId);
+
+        if (error || !orderItems) {
+            console.error('[OrderService] Failed to fetch items for restoration:', error);
+            return;
+        }
+
+        // Restore Stock
+        const inventoryRestorations = orderItems.map(async (item) => {
+            if (item.product) {
+                const currentStock = item.product.stock || 0;
+                const newStock = currentStock + item.quantity;
+
+                const { error: stockError } = await supabaseAdmin
+                    .from('products')
+                    .update({ stock: newStock })
+                    .eq('id', item.product_id);
+
+                if (stockError) {
+                    console.error(`[OrderService] Failed to restore stock for product ${item.product_id}:`, stockError);
+                }
+            }
+        });
+
+        await Promise.allSettled(inventoryRestorations);
+        console.log('[OrderService] Inventory restoration complete.');
     }
 }
 

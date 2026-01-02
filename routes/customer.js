@@ -432,31 +432,13 @@ router.post('/orders', requireVerification, async (req, res) => {
       });
     } else {
       // --- COD Flow ---
-      const allProductIds = validCartItems.map(i => i.product_id);
-      await supabaseAdmin.from('cart').delete().eq('customer_id', customerId).in('product_id', allProductIds);
+      // 1. Process each created order via OrderService (Deducts stock, sends emails, clears specific cart items)
+      const OrderService = require('../services/orderService');
 
-      const emailNotifications = [];
-      for (const order of ordersCreated) {
-        const vendorItems = itemsGroupedByVendor[order.vendor_id];
-        const vendor = vendorItems[0].product.vendor;
-
-        if (vendor?.business_email) {
-          const emailItems = vendorItems.map(i => ({ name: i.product.name, quantity: i.quantity, price: Number(i.product.price) }));
-          emailNotifications.push(emailService.sendVendorNewOrderEmail({
-            vendorEmail: vendor.business_email, vendorName: vendor.business_name,
-            customerName: shippingAddressPayload.fullName, customerEmail: shippingAddressPayload.email,
-            orderId: order.id, totalAmount: order.total_amount,
-            paymentMethod: 'cod', shippingAddress: shippingAddressPayload, items: emailItems
-          }).catch(e => console.error(e)));
-        }
-      }
-      if (shippingAddressPayload.email) {
-        emailNotifications.push(emailService.sendCustomerOrderConfirmation({
-          customerEmail: shippingAddressPayload.email, customerName: shippingAddressPayload.fullName,
-          orders: ordersCreated, paymentMethod: 'cod', shippingAddress: shippingAddressPayload
-        }).catch(e => console.error(e)));
-      }
-      await Promise.allSettled(emailNotifications);
+      // Use Promise.all to process all vendor orders
+      await Promise.all(ordersCreated.map(async (order) => {
+        await OrderService.finalizeOrder(order.id, 'cod');
+      }));
 
       return res.status(201).json({
         success: true,
@@ -705,6 +687,10 @@ router.put('/orders/:orderId/cancel', requireVerification, async (req, res) => {
         }
       });
     }
+
+    // Restore Inventory
+    const OrderService = require('../services/orderService');
+    await OrderService.restoreInventory(orderId);
 
     // Get customer and vendor details for email notification
     try {
