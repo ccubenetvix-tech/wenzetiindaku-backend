@@ -366,7 +366,7 @@ router.post('/orders', requireVerification, async (req, res) => {
       const vendorTotal = vendorItems.reduce((sum, item) => {
         const p = Number(item.product.price) || 0;
         return sum + p * item.quantity;
-      }, 0);
+      }, 0) * 1.16;
       totalGlobalAmount += vendorTotal;
 
       const orderPayload = {
