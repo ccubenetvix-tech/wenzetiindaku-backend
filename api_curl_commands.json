@@ -56,7 +56,7 @@
       "method": "POST",
       "path": "/api/auth/vendor/signup",
       "description": "Register a new vendor account.",
-      "curl": "curl -X POST \"$BASE_URL/api/auth/vendor/signup\" -H 'Content-Type: application/json' -d '{\"businessName\":\"Sample Store\",\"businessEmail\":\"store@example.com\",\"businessPhone\":\"+1234567890\",\"businessWebsite\":\"https://samplestore.com\",\"businessAddress\":\"123 Market Street\",\"city\":\"Lusaka\",\"state\":\"Lusaka Province\",\"country\":\"Zambia\",\"postalCode\":\"10101\",\"businessType\":\"Retail\",\"description\":\"We sell great products.\",\"categories\":[\"electronics\",\"fashion\"],\"password\":\"StrongPass123!\",\"agreeToTerms\":true,\"agreeToVendorTerms\":true}'"
+      "curl": "curl -X POST \"$BASE_URL/api/auth/vendor/signup\" -H 'Content-Type: application/json' -d '{\"businessName\":\"Sample Store\",\"businessEmail\":\"store@example.com\",\"businessPhone\":\"+1234567890\",\"businessWebsite\":\"https://samplestore.com\",\"businessAddress\":\"123 Market Street\",\"city\":\"Kinshasa\",\"state\":\"Kinshasa Province\",\"country\":\"DR Congo\",\"postalCode\":\"10101\",\"businessType\":\"Retail\",\"description\":\"We sell great products.\",\"categories\":[\"electronics\",\"fashion\"],\"password\":\"StrongPass123!\",\"agreeToTerms\":true,\"agreeToVendorTerms\":true}'"
     },
     {
       "group": "Auth",
@@ -136,7 +136,7 @@
       "method": "PUT",
       "path": "/api/customer/profile",
       "description": "Update customer profile details or password.",
-      "curl": "curl -X PUT \"$BASE_URL/api/customer/profile\" -H 'Authorization: Bearer <JWT_TOKEN>' -H 'Content-Type: application/json' -d '{\"firstName\":\"Jane\",\"lastName\":\"Doe\",\"gender\":\"female\",\"address\":\"456 Commerce Ave\",\"phoneNumber\":\"+260771234567\",\"dateOfBirth\":\"1995-05-10\"}'"
+      "curl": "curl -X PUT \"$BASE_URL/api/customer/profile\" -H 'Authorization: Bearer <JWT_TOKEN>' -H 'Content-Type: application/json' -d '{\"firstName\":\"Jane\",\"lastName\":\"Doe\",\"gender\":\"female\",\"address\":\"456 Commerce Ave\",\"phoneNumber\":\"+243771234567\",\"dateOfBirth\":\"1995-05-10\"}'"
     },
     {
       "group": "Customer",
@@ -152,7 +152,7 @@
       "method": "POST",
       "path": "/api/customer/orders",
       "description": "Convert the customer cart into one or more vendor orders with shipping details.",
-      "curl": "curl -X POST \"$BASE_URL/api/customer/orders\" -H 'Authorization: Bearer <JWT_TOKEN>' -H 'Content-Type: application/json' -d '{\"paymentMethod\":\"cod\",\"saveAddressToProfile\":true,\"shippingAddress\":{\"fullName\":\"Jane Doe\",\"email\":\"jane@example.com\",\"phone\":\"+260700000000\",\"street1\":\"123 Market Avenue\",\"city\":\"Lusaka\",\"state\":\"Lusaka Province\",\"postalCode\":\"10101\",\"country\":\"Zambia\"}}'"
+      "curl": "curl -X POST \"$BASE_URL/api/customer/orders\" -H 'Authorization: Bearer <JWT_TOKEN>' -H 'Content-Type: application/json' -d '{\"paymentMethod\":\"cod\",\"saveAddressToProfile\":true,\"shippingAddress\":{\"fullName\":\"Jane Doe\",\"email\":\"jane@example.com\",\"phone\":\"+243700000000\",\"street1\":\"123 Market Avenue\",\"city\":\"Kinshasa\",\"state\":\"Kinshasa Province\",\"postalCode\":\"10101\",\"country\":\"DR Congo\"}}'"
     },
     {
       "group": "Customer",
@@ -320,7 +320,7 @@
       "method": "PUT",
       "path": "/api/vendor/profile",
       "description": "Update vendor business information.",
-      "curl": "curl -X PUT \"$BASE_URL/api/vendor/profile\" -H 'Authorization: Bearer <JWT_TOKEN>' -H 'Content-Type: application/json' -d '{\"businessPhone\":\"+1234567890\",\"businessWebsite\":\"https://samplestore.com\",\"businessAddress\":\"123 Market Street\",\"city\":\"Lusaka\",\"state\":\"Lusaka Province\",\"country\":\"Zambia\",\"postalCode\":\"10101\",\"description\":\"Updated description\",\"categories\":[\"electronics\",\"fashion\"],\"supportEmail\":\"support@samplestore.com\"}'"
+      "curl": "curl -X PUT \"$BASE_URL/api/vendor/profile\" -H 'Authorization: Bearer <JWT_TOKEN>' -H 'Content-Type: application/json' -d '{\"businessPhone\":\"+1234567890\",\"businessWebsite\":\"https://samplestore.com\",\"businessAddress\":\"123 Market Street\",\"city\":\"Kinshasa\",\"state\":\"Kinshasa Province\",\"country\":\"DR Congo\",\"postalCode\":\"10101\",\"description\":\"Updated description\",\"categories\":[\"electronics\",\"fashion\"],\"supportEmail\":\"support@samplestore.com\"}'"
     },
     {
       "group": "Vendor",
@@ -508,4 +508,3 @@
     }
   ]
 }
-

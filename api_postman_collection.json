@@ -147,7 +147,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"businessName\": \"Sample Store\",\n    \"businessEmail\": \"store@example.com\",\n    \"businessPhone\": \"+1234567890\",\n    \"businessWebsite\": \"https://samplestore.com\",\n    \"businessAddress\": \"123 Market Street\",\n    \"city\": \"Lusaka\",\n    \"state\": \"Lusaka Province\",\n    \"country\": \"Zambia\",\n    \"postalCode\": \"10101\",\n    \"businessType\": \"Retail\",\n    \"description\": \"We sell great products.\",\n    \"categories\": [\"electronics\", \"fashion\"],\n    \"password\": \"StrongPass123!\",\n    \"agreeToTerms\": true,\n    \"agreeToVendorTerms\": true\n}"
+							"raw": "{\n    \"businessName\": \"Sample Store\",\n    \"businessEmail\": \"store@example.com\",\n    \"businessPhone\": \"+1234567890\",\n    \"businessWebsite\": \"https://samplestore.com\",\n    \"businessAddress\": \"123 Market Street\",\n    \"city\": \"Kinshasa\",\n    \"state\": \"Kinshasa Province\",\n    \"country\": \"DR Congo\",\n    \"postalCode\": \"10101\",\n    \"businessType\": \"Retail\",\n    \"description\": \"We sell great products.\",\n    \"categories\": [\"electronics\", \"fashion\"],\n    \"password\": \"StrongPass123!\",\n    \"agreeToTerms\": true,\n    \"agreeToVendorTerms\": true\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/auth/vendor/signup",
@@ -348,7 +348,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"firstName\": \"Jane\",\n    \"lastName\": \"Doe\",\n    \"gender\": \"female\",\n    \"address\": \"456 Commerce Ave\",\n    \"phoneNumber\": \"+260771234567\",\n    \"dateOfBirth\": \"1995-05-10\"\n}"
+							"raw": "{\n    \"firstName\": \"Jane\",\n    \"lastName\": \"Doe\",\n    \"gender\": \"female\",\n    \"address\": \"456 Commerce Ave\",\n    \"phoneNumber\": \"+243771234567\",\n    \"dateOfBirth\": \"1995-05-10\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/customer/profile",
@@ -412,7 +412,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"paymentMethod\": \"cod\",\n    \"saveAddressToProfile\": true,\n    \"shippingAddress\": {\n        \"fullName\": \"Jane Doe\",\n        \"email\": \"jane@example.com\",\n        \"phone\": \"+260700000000\",\n        \"street1\": \"123 Market Avenue\",\n        \"city\": \"Lusaka\",\n        \"state\": \"Lusaka Province\",\n        \"postalCode\": \"10101\",\n        \"country\": \"Zambia\"\n    }\n}"
+							"raw": "{\n    \"paymentMethod\": \"cod\",\n    \"saveAddressToProfile\": true,\n    \"shippingAddress\": {\n        \"fullName\": \"Jane Doe\",\n        \"email\": \"jane@example.com\",\n        \"phone\": \"+243700000000\",\n        \"street1\": \"123 Market Avenue\",\n        \"city\": \"Kinshasa\",\n        \"state\": \"Kinshasa Province\",\n        \"postalCode\": \"10101\",\n        \"country\": \"DR Congo\"\n    }\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/customer/orders",
@@ -619,7 +619,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"label\": \"Home\",\n    \"fullName\": \"Jane Doe\",\n    \"email\": \"jane@example.com\",\n    \"phone\": \"+26077000000\",\n    \"street1\": \"123 Main St\",\n    \"city\": \"Lusaka\",\n    \"state\": \"Lusaka\",\n    \"postalCode\": \"10101\",\n    \"country\": \"Zambia\",\n    \"isDefault\": true\n}"
+							"raw": "{\n    \"label\": \"Home\",\n    \"fullName\": \"Jane Doe\",\n    \"email\": \"jane@example.com\",\n    \"phone\": \"+24377000000\",\n    \"street1\": \"123 Main St\",\n    \"city\": \"Kinshasa\",\n    \"state\": \"Kinshasa\",\n    \"postalCode\": \"10101\",\n    \"country\": \"DR Congo\",\n    \"isDefault\": true\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/customer/addresses",
@@ -1091,7 +1091,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"businessPhone\": \"+26077000000\",\n    \"description\": \"Updated description\"\n}"
+							"raw": "{\n    \"businessPhone\": \"+24377000000\",\n    \"description\": \"Updated description\"\n}"
 						},
 						"url": {
 							"raw": "{{baseUrl}}/api/vendor/profile",
