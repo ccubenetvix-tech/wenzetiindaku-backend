@@ -81,13 +81,17 @@ router.post('/login', async (req, res) => {
 router.get('/vendors', protect, authorize('admin'), async (req, res) => {
   try {
     const { page = 1, limit = 10, status, search } = req.query;
-    const offset = (page - 1) * limit;
+    const isLoadAll = limit === 'all';
+    const offset = (page - 1) * (isLoadAll ? 1000 : limit);
 
     let query = supabaseAdmin
       .from('vendors')
       .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .order('created_at', { ascending: false });
+
+    if (!isLoadAll) {
+      query = query.range(offset, offset + limit - 1);
+    }
 
     if (status) {
       if (status === 'pending') {
@@ -122,9 +126,9 @@ router.get('/vendors', protect, authorize('admin'), async (req, res) => {
         vendors,
         pagination: {
           page: parseInt(page),
-          limit: parseInt(limit),
+          limit: isLoadAll ? (count || 0) : parseInt(limit),
           total: count || 0,
-          totalPages: Math.ceil((count || 0) / limit)
+          totalPages: isLoadAll ? 1 : Math.ceil((count || 0) / limit)
         }
       }
     });
@@ -565,7 +569,8 @@ router.delete('/vendors/:vendorId', protect, authorize('admin'), async (req, res
 router.get('/products', protect, authorize('admin'), async (req, res) => {
   try {
     const { page = 1, limit = 10, search = '', status = '', vendor_id = '' } = req.query;
-    const offset = (page - 1) * limit;
+    const isLoadAll = limit === 'all';
+    const offset = (page - 1) * (isLoadAll ? 1000 : limit);
 
     // When search is provided, fetch matching products and vendors, then filter in memory
     if (search) {
@@ -618,7 +623,7 @@ router.get('/products', protect, authorize('admin'), async (req, res) => {
       });
 
       const total = filtered.length;
-      const paginated = filtered.slice(offset, offset + Number(limit));
+      const paginated = isLoadAll ? filtered : filtered.slice(offset, offset + Number(limit));
 
       return res.json({
         success: true,
@@ -626,8 +631,9 @@ router.get('/products', protect, authorize('admin'), async (req, res) => {
           products: paginated,
           pagination: {
             page: parseInt(page),
-            limit: parseInt(limit),
-            total
+            limit: isLoadAll ? total : parseInt(limit),
+            total,
+            totalPages: isLoadAll ? 1 : Math.ceil(total / limit)
           }
         }
       });
@@ -646,8 +652,11 @@ router.get('/products', protect, authorize('admin'), async (req, res) => {
           verified
         )
       `, { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .order('created_at', { ascending: false });
+
+    if (!isLoadAll) {
+      query = query.range(offset, offset + limit - 1);
+    }
 
     if (status) {
       query = query.eq('status', status);
@@ -675,8 +684,9 @@ router.get('/products', protect, authorize('admin'), async (req, res) => {
         products,
         pagination: {
           page: parseInt(page),
-          limit: parseInt(limit),
-          total: count || 0
+          limit: isLoadAll ? (count || 0) : parseInt(limit),
+          total: count || 0,
+          totalPages: isLoadAll ? 1 : Math.ceil((count || 0) / limit)
         }
       }
     });
@@ -861,13 +871,17 @@ router.put('/products/:productId/red-mark', protect, authorize('admin'), async (
 router.get('/customers', protect, authorize('admin'), async (req, res) => {
   try {
     const { page = 1, limit = 10, search = '' } = req.query;
-    const offset = (page - 1) * limit;
+    const isLoadAll = limit === 'all';
+    const offset = (page - 1) * (isLoadAll ? 1000 : limit);
 
     let query = supabaseAdmin
       .from('customers')
       .select('*')
-      .order('created_at', { ascending: false })
-      .range(offset, offset + limit - 1);
+      .order('created_at', { ascending: false });
+
+    if (!isLoadAll) {
+      query = query.range(offset, offset + limit - 1);
+    }
 
     if (search) {
       query = query.or(`first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%`);
@@ -891,8 +905,9 @@ router.get('/customers', protect, authorize('admin'), async (req, res) => {
         customers,
         pagination: {
           page: parseInt(page),
-          limit: parseInt(limit),
-          total: count || 0
+          limit: isLoadAll ? (count || 0) : parseInt(limit),
+          total: count || 0,
+          totalPages: isLoadAll ? 1 : Math.ceil((count || 0) / limit)
         }
       }
     });
@@ -1053,8 +1068,9 @@ router.delete('/customers/:customerId', protect, authorize('admin'), async (req,
 router.get('/orders', protect, authorize('admin'), async (req, res) => {
   try {
     const { page = 1, limit = 20, status = '', search = '', dateFrom = '', dateTo = '' } = req.query;
+    const isLoadAll = limit === 'all';
     const pageNumber = Number.parseInt(page, 10) || 1;
-    const pageSize = Number.parseInt(limit, 10) || 20;
+    const pageSize = isLoadAll ? 1000 : (Number.parseInt(limit, 10) || 20);
     const offset = (pageNumber - 1) * pageSize;
 
     // Base query with joins
@@ -1188,7 +1204,9 @@ router.get('/orders', protect, authorize('admin'), async (req, res) => {
     } else {
       // DEFAULT STRATEGY: Database-level pagination (no search term)
       // Apply pagination to query
-      baseQuery = baseQuery.range(offset, offset + pageSize - 1);
+      if (!isLoadAll) {
+        baseQuery = baseQuery.range(offset, offset + pageSize - 1);
+      }
 
       const { data: orders, error, count } = await baseQuery; // count won't be exact here naturally without extra query or config, but we deal with it below
 
