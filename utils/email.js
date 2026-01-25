@@ -102,13 +102,13 @@ class EmailService {
             <div style="background: white; border-radius: 8px; padding: 20px; margin: 20px 0;">
               <h3 style="color: #1e3a8a; margin-top: 0;">What's next?</h3>
               ${role === 'vendor'
-          ? '<p style="color: #374151; margin: 0;">Our team will review your vendor application within 2-3 business days. You\'ll receive an email notification once approved.Meanwhile please read the vendor conditions attached to this email.</p>'
+          ? '<p style="color: #374151; margin: 0;">Our team will review your vendor application within 2-3 business days. You\'ll receive an email notification once approved. Meanwhile please read the vendor conditions attached to this email.</p>'
           : '<p style="color: #374151; margin: 0;">You can now start shopping and exploring our marketplace. Browse thousands of products from verified vendors.</p>'
         }
             </div>
             
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${process.env.FRONTEND_URL}" 
+              <a href="${process.env.FRONTEND_URL}/vendor/login" 
                  style="background: linear-gradient(135deg, #1e3a8a 0%, #ea580c 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold;">
                 ${role === 'vendor' ? 'Check Application Status' : 'Start Shopping'}
               </a>
