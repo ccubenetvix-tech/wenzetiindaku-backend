@@ -4,6 +4,7 @@ const { supabaseAdmin } = require('../config/supabase');
 const { authenticateToken, protect, requireRole, requireVerification } = require('../middleware/auth');
 
 const UPLOAD_BUCKET = process.env.SUPABASE_PUBLIC_BUCKET || 'public-images';
+const VAT_RATE = 0.16; // 16% VAT
 let bucketInitialized = false;
 
 const ensureBucketExists = async () => {
@@ -808,6 +809,9 @@ router.post('/products', protect, async (req, res) => {
       });
     }
 
+    // Apply VAT to the price
+    const finalPrice = parsedPrice * (1 + VAT_RATE);
+
     const parsedStock = stock !== undefined && stock !== null
       ? Number.parseInt(stock, 10)
       : 0;
@@ -867,7 +871,7 @@ router.post('/products', protect, async (req, res) => {
       vendor_id: id,
       name: name.trim(),
       description: description.trim(),
-      price: parsedPrice,
+      price: finalPrice,
       category,
       images: imageUrls,
       stock: normalizedStock,
@@ -972,7 +976,8 @@ router.put('/products/:productId', protect, async (req, res) => {
           },
         });
       }
-      updateData.price = parsedPrice;
+      // Apply VAT to the price update
+      updateData.price = parsedPrice * (1 + VAT_RATE);
     }
 
     if (stock !== undefined && stock !== null && stock !== '') {
