@@ -946,6 +946,486 @@ router.post('/vendor/resend-otp', async (req, res) => {
 });
 
 /**
+ * @route   POST /api/auth/customer/forgot-password
+ * @desc    Request OTP for customer password reset
+ * @access  Public
+ */
+router.post('/customer/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Email is required'
+        }
+      });
+    }
+
+    const normalizedEmail = normalizeEmail(email);
+    const emailStatus = await checkEmailRegistration(email);
+
+    if (!emailStatus.exists) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: 'Customer not found'
+        }
+      });
+    }
+
+    if (emailStatus.role !== 'customer') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          message: emailStatus.message || 'This email is registered under a different account type.'
+        }
+      });
+    }
+
+    const { data: customer, error } = await supabaseAdmin
+      .from('customers')
+      .select('*')
+      .eq('email', normalizedEmail)
+      .maybeSingle();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('Customer lookup error:', error);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Internal server error'
+        }
+      });
+    }
+
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: 'Customer not found'
+        }
+      });
+    }
+
+    const otp = generateOTP();
+    const otpExpiry = generateOTPExpiry();
+
+    const { error: updateError } = await supabaseAdmin
+      .from('customers')
+      .update({
+        otp,
+        otp_expiry: new Date(otpExpiry).toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', customer.id);
+
+    if (updateError) {
+      console.error('Error updating OTP:', updateError);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to generate OTP'
+        }
+      });
+    }
+
+    try {
+      await emailService.sendOTPEmail(email, otp, 'password_reset');
+    } catch (emailError) {
+      console.error('Error sending OTP email:', emailError);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to send OTP email'
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'OTP sent to your email'
+    });
+  } catch (error) {
+    console.error('Customer forgot password error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Internal server error'
+      }
+    });
+  }
+});
+
+/**
+ * @route   POST /api/auth/customer/reset-password
+ * @desc    Reset customer password using OTP
+ * @access  Public
+ */
+router.post('/customer/reset-password', async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Email, OTP, and new password are required'
+        }
+      });
+    }
+
+    if (!isValidOTP(otp)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Invalid OTP format'
+        }
+      });
+    }
+
+    if (typeof newPassword !== 'string' || newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Password must be at least 8 characters long'
+        }
+      });
+    }
+
+    const normalizedEmail = normalizeEmail(email);
+
+    const { data: customer, error } = await supabaseAdmin
+      .from('customers')
+      .select('*')
+      .eq('email', normalizedEmail)
+      .maybeSingle();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('Customer lookup error:', error);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Internal server error'
+        }
+      });
+    }
+
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: 'Customer not found'
+        }
+      });
+    }
+
+    if (!customer.otp || !customer.otp_expiry) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'OTP has expired. Please request a new one.'
+        }
+      });
+    }
+
+    if (customer.otp !== otp) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Invalid OTP'
+        }
+      });
+    }
+
+    if (isOTPExpired(new Date(customer.otp_expiry).getTime())) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'OTP has expired. Please request a new one.'
+        }
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 8);
+
+    const { error: updateError } = await supabaseAdmin
+      .from('customers')
+      .update({
+        password: hashedPassword,
+        otp: null,
+        otp_expiry: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', customer.id);
+
+    if (updateError) {
+      console.error('Password reset error:', updateError);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to reset password'
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Password reset successful. Please login again.'
+    });
+  } catch (error) {
+    console.error('Customer reset password error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Internal server error'
+      }
+    });
+  }
+});
+
+/**
+ * @route   POST /api/auth/vendor/forgot-password
+ * @desc    Request OTP for vendor password reset
+ * @access  Public
+ */
+router.post('/vendor/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email || typeof email !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Email is required'
+        }
+      });
+    }
+
+    const normalizedEmail = normalizeEmail(email);
+    const emailStatus = await checkEmailRegistration(email);
+
+    if (!emailStatus.exists) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: 'Vendor not found'
+        }
+      });
+    }
+
+    if (emailStatus.role !== 'vendor') {
+      return res.status(403).json({
+        success: false,
+        error: {
+          message: emailStatus.message || 'This email is registered under a different account type.'
+        }
+      });
+    }
+
+    const { data: vendor, error } = await supabaseAdmin
+      .from('vendors')
+      .select('*')
+      .eq('business_email', normalizedEmail)
+      .maybeSingle();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('Vendor lookup error:', error);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Internal server error'
+        }
+      });
+    }
+
+    if (!vendor) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: 'Vendor not found'
+        }
+      });
+    }
+
+    const otp = generateOTP();
+    const otpExpiry = generateOTPExpiry();
+
+    const { error: updateError } = await supabaseAdmin
+      .from('vendors')
+      .update({
+        otp,
+        otp_expiry: new Date(otpExpiry).toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', vendor.id);
+
+    if (updateError) {
+      console.error('Error updating OTP:', updateError);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to generate OTP'
+        }
+      });
+    }
+
+    try {
+      await emailService.sendOTPEmail(email, otp, 'password_reset');
+    } catch (emailError) {
+      console.error('Error sending OTP email:', emailError);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to send OTP email'
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'OTP sent to your email'
+    });
+  } catch (error) {
+    console.error('Vendor forgot password error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Internal server error'
+      }
+    });
+  }
+});
+
+/**
+ * @route   POST /api/auth/vendor/reset-password
+ * @desc    Reset vendor password using OTP
+ * @access  Public
+ */
+router.post('/vendor/reset-password', async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Email, OTP, and new password are required'
+        }
+      });
+    }
+
+    if (!isValidOTP(otp)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Invalid OTP format'
+        }
+      });
+    }
+
+    if (typeof newPassword !== 'string' || newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Password must be at least 8 characters long'
+        }
+      });
+    }
+
+    const normalizedEmail = normalizeEmail(email);
+
+    const { data: vendor, error } = await supabaseAdmin
+      .from('vendors')
+      .select('*')
+      .eq('business_email', normalizedEmail)
+      .maybeSingle();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('Vendor lookup error:', error);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Internal server error'
+        }
+      });
+    }
+
+    if (!vendor) {
+      return res.status(404).json({
+        success: false,
+        error: {
+          message: 'Vendor not found'
+        }
+      });
+    }
+
+    if (!vendor.otp || !vendor.otp_expiry) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'OTP has expired. Please request a new one.'
+        }
+      });
+    }
+
+    if (vendor.otp !== otp) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Invalid OTP'
+        }
+      });
+    }
+
+    if (isOTPExpired(new Date(vendor.otp_expiry).getTime())) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'OTP has expired. Please request a new one.'
+        }
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12);
+
+    const { error: updateError } = await supabaseAdmin
+      .from('vendors')
+      .update({
+        password: hashedPassword,
+        otp: null,
+        otp_expiry: null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', vendor.id);
+
+    if (updateError) {
+      console.error('Password reset error:', updateError);
+      return res.status(500).json({
+        success: false,
+        error: {
+          message: 'Failed to reset password'
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Password reset successful. Please login again.'
+    });
+  } catch (error) {
+    console.error('Vendor reset password error:', error);
+    res.status(500).json({
+      success: false,
+      error: {
+        message: 'Internal server error'
+      }
+    });
+  }
+});
+
+/**
  * @route   GET /api/auth/me
  * @desc    Get current user profile
  * @access  Private
