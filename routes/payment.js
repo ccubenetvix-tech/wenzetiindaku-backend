@@ -68,6 +68,8 @@ router.get('/maishapay/callback*', async (req, res) => {
         let status = q.status || q.Status;
         const transactionid = q.transactionid || q.transactionId || q.transaction_id || q.TransactionID;
         const description = q.description || q.Description || 'Payment Failed';
+        // Try to extract payment channel/method if present
+        const paymentChannel = q.payment_method || q.channel || q.type || q.paymentChannel || q.PaymentChannel;
 
         // Defensive: Gateway might append /?status=400 to the value
         // Example: "UUID/?status=400" or "UUID/"
@@ -88,8 +90,8 @@ router.get('/maishapay/callback*', async (req, res) => {
 
         console.log('[MaishaPay Callback] Received:', req.query);
 
-        // Verify and Update Order
-        const success = await MaishaPayService.verifyTransaction(reference, status, transactionid);
+        // Verify and Update Order, pass paymentChannel if present
+        const success = await MaishaPayService.verifyTransaction(reference, status, transactionid, paymentChannel);
 
         if (success) {
             // Processing logic (emails etc) can be triggered here or inside Service
@@ -122,11 +124,13 @@ router.post('/maishapay/ipn', async (req, res) => {
         const reference = b.reference || b.Reference || b.orderId;
         const status = b.status || b.Status;
         const transactionid = b.transactionid || b.transactionId || b.transaction_id || b.TransactionID;
+        // Try to extract payment channel/method if present
+        const paymentChannel = b.payment_method || b.channel || b.type || b.paymentChannel || b.PaymentChannel;
 
         if (!reference) return res.status(400).send('Missing reference');
 
-        // Verify and Update
-        const success = await MaishaPayService.verifyTransaction(reference, status, transactionid);
+        // Verify and Update, pass paymentChannel if present
+        const success = await MaishaPayService.verifyTransaction(reference, status, transactionid, paymentChannel);
 
         if (success) {
             res.status(200).send('OK');

@@ -50,7 +50,7 @@ class MaishaPayService {
    * @param {string} status Status from redirect/IPN
    * @param {string} transactionRefId Reference ID from Maisha Pay
    */
-    static async verifyTransaction(orderId, status, transactionRefId) {
+    static async verifyTransaction(orderId, status, transactionRefId, paymentChannel) {
         console.log(`[MaishaPay] Verifying transaction: Order=${orderId}, Status=${status}, Ref=${transactionRefId}`);
 
         // 1. Check Status
@@ -87,13 +87,21 @@ class MaishaPayService {
         if (successStatuses.includes(s)) {
             console.log(`[MaishaPay] Payment SUCCESS. Status: '${status}'`);
 
+            // Determine payment method label
+            let paymentMethodLabel = 'online';
+            if (paymentChannel) {
+                const channel = String(paymentChannel).toLowerCase();
+                if (channel.includes('card')) paymentMethodLabel = 'paid by card';
+                else if (channel.includes('mobile')) paymentMethodLabel = 'paid by mobile money';
+            }
+
             // 2. Update DB for SUCCESS
             const { error: updateError } = await supabaseAdmin
                 .from('orders')
                 .update({
                     status: 'completed',
                     payment_status: 'paid',
-                    payment_method: 'online'
+                    payment_method: paymentMethodLabel
                 })
                 .eq('id', orderId);
 
@@ -106,10 +114,6 @@ class MaishaPayService {
 
             // 3. Finalize Order (Emails, Stock, etc)
             const OrderService = require('./orderService');
-            // Check if OrderService.finalizeOrder handles the DB update? 
-            // Usually it does, let's check what verifyTransaction did before.
-            // It called OrderService.finalizeOrder(orderId, 'online');
-            // We should still call this to trigger emails etc.
             await OrderService.finalizeOrder(orderId, 'online');
 
             return true;

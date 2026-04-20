@@ -363,10 +363,11 @@ router.post('/orders', requireVerification, async (req, res) => {
 
     for (const [vendorId, vendorItems] of Object.entries(itemsGroupedByVendor)) {
       const orderId = uuidv4();
+      // Do NOT add VAT again; prices already include VAT
       const vendorTotal = vendorItems.reduce((sum, item) => {
         const p = Number(item.product.price) || 0;
         return sum + p * item.quantity;
-      }, 0) * 1.16;
+      }, 0);
       totalGlobalAmount += vendorTotal;
 
       const orderPayload = {
