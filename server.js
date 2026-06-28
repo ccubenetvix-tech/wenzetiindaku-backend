@@ -51,17 +51,25 @@ app.use(limiter);
 // CORS configuration
 
 app.use(cors({
-  origin: [
-    process.env.FRONTEND_URL || 'http://localhost:5173',
-    'https://elegant-pothos-5c2a00.netlify.app',
-    'https://wenzetiindaku-frontend-8z159plbu-ccubenetvix-techs-projects.vercel.app/',
-    'https://wenze-tii-ndaku.netlify.app',
-    'https://wenzetiindaku-marketplace.netlify.app',
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'https://wenzetiindaku.vercel.app',
-    'https://www.wenzetiindaku.com/'
-  ],
+  origin: (origin, callback) => {
+    const allowed = [
+      process.env.FRONTEND_URL || 'http://localhost:5173',
+      'https://elegant-pothos-5c2a00.netlify.app',
+      'https://wenzetiindaku-frontend-8z159plbu-ccubenetvix-techs-projects.vercel.app/',
+      'https://wenze-tii-ndaku.netlify.app',
+      'https://wenzetiindaku-marketplace.netlify.app',
+      'http://localhost:5173',
+      'http://localhost:3000',
+      'https://wenzetiindaku.vercel.app',
+      'https://www.wenzetiindaku.com/'
+    ];
+    // Allow mobile (no origin) and whitelisted web origins
+    if (!origin || allowed.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control', 'Pragma'],
