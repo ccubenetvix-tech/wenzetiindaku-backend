@@ -58,7 +58,7 @@ jobs:
     runs-on: ubuntu-latest
 
     environment:
-      name: development
+      name: dev
 
     steps:
       - name: Checkout PR code
