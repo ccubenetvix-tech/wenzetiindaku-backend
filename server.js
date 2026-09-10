@@ -97,7 +97,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'OK',
-    message: 'WENZE TII NDAKU Backend API is running',
+    message: 'WENZE TII NDAKU Backend API is running yayy!!',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
