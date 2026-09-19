@@ -2,6 +2,7 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const passport = require('passport');
+const rateLimit = require('express-rate-limit');
 const { v4: uuidv4 } = require('uuid');
 
 const { supabaseAdmin } = require('../config/supabase');
@@ -12,6 +13,34 @@ const { validateCustomerSignup, validateVendorSignup, sanitizeString } = require
 const { checkEmailRegistration, getRoleLabel, normalizeEmail } = require('../utils/accountRegistration');
 
 const router = express.Router();
+
+// Strict limiters for brute-force-sensitive auth endpoints — independent of the global API limiter.
+// Login: enough headroom for real typos, tight enough to block credential-stuffing.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { success: false, error: { message: 'Too many login attempts. Please try again later.' } },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// OTP verify/resend: a 6-digit OTP only has 1,000,000 combinations, so this must be tight.
+const otpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { success: false, error: { message: 'Too many attempts. Please try again later.' } },
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Password reset request/confirm.
+const passwordResetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { success: false, error: { message: 'Too many attempts. Please try again later.' } },
+  standardHeaders: true,
+  legacyHeaders: false
+});
 
 /**
  * Generate JWT token
@@ -25,9 +54,27 @@ const generateToken = (userId, role) => {
 };
 
 /**
- * @route   POST /api/auth/customer/signup
- * @desc    Register a new customer
- * @access  Public
+ * @swagger
+ * /api/auth/customer/signup:
+ *   post:
+ *     summary: Register a new customer
+ *     tags: [Auth - Customer]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [firstName, lastName, email, password]
+ *             properties:
+ *               firstName: { type: string }
+ *               lastName: { type: string }
+ *               email: { type: string }
+ *               password: { type: string }
+ *               agreeToTerms: { type: boolean }
+ *     responses:
+ *       200: { description: Signup succeeded, OTP sent to email }
+ *       400: { description: Validation failed or email already registered }
  */
 router.post('/customer/signup', async (req, res) => {
   try {
@@ -61,7 +108,10 @@ router.post('/customer/signup', async (req, res) => {
       return res.status(400).json({
         success: false,
         error: {
-          message: emailStatus.message
+          message: emailStatus.message,
+          // Lets the frontend redirect straight to the OTP-verify step (and
+          // trigger a resend) instead of leaving the user at a dead end.
+          unverifiedAccount: emailStatus.role === 'customer' && emailStatus.verified === false
         }
       });
     }
@@ -135,11 +185,26 @@ router.post('/customer/signup', async (req, res) => {
 });
 
 /**
- * @route   POST /api/auth/customer/verify-otp
- * @desc    Verify customer OTP
- * @access  Public
+ * @swagger
+ * /api/auth/customer/verify-otp:
+ *   post:
+ *     summary: Verify customer OTP to activate account
+ *     tags: [Auth - Customer]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email, otp]
+ *             properties:
+ *               email: { type: string }
+ *               otp: { type: string }
+ *     responses:
+ *       200: { description: Account verified, JWT returned }
+ *       400: { description: Invalid or expired OTP }
  */
-router.post('/customer/verify-otp', async (req, res) => {
+router.post('/customer/verify-otp', otpLimiter, async (req, res) => {
   try {
     const { email, otp } = req.body;
 
@@ -257,7 +322,7 @@ router.post('/customer/verify-otp', async (req, res) => {
  * @desc    Login customer
  * @access  Public
  */
-router.post('/customer/login', async (req, res) => {
+router.post('/customer/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -373,11 +438,25 @@ router.post('/customer/login', async (req, res) => {
 });
 
 /**
- * @route   POST /api/auth/customer/resend-otp
- * @desc    Resend OTP for customer
- * @access  Public
+ * @swagger
+ * /api/auth/customer/resend-otp:
+ *   post:
+ *     summary: Resend OTP for an unverified customer account
+ *     tags: [Auth - Customer]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email: { type: string }
+ *     responses:
+ *       200: { description: New OTP generated and emailed }
+ *       400: { description: Account not found or already verified }
  */
-router.post('/customer/resend-otp', async (req, res) => {
+router.post('/customer/resend-otp', otpLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -512,7 +591,10 @@ router.post('/vendor/signup', async (req, res) => {
       return res.status(400).json({
         success: false,
         error: {
-          message: emailStatus.message
+          message: emailStatus.message,
+          // Lets the frontend redirect straight to the OTP-verify step (and
+          // trigger a resend) instead of leaving the user at a dead end.
+          unverifiedAccount: emailStatus.role === 'vendor' && emailStatus.verified === false
         }
       });
     }
@@ -600,7 +682,7 @@ router.post('/vendor/signup', async (req, res) => {
  * @desc    Verify vendor OTP
  * @access  Public
  */
-router.post('/vendor/verify-otp', async (req, res) => {
+router.post('/vendor/verify-otp', otpLimiter, async (req, res) => {
   try {
     const { email, otp } = req.body;
 
@@ -718,7 +800,7 @@ router.post('/vendor/verify-otp', async (req, res) => {
  * @desc    Login vendor
  * @access  Public
  */
-router.post('/vendor/login', async (req, res) => {
+router.post('/vendor/login', loginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -848,11 +930,25 @@ router.post('/vendor/login', async (req, res) => {
 });
 
 /**
- * @route   POST /api/auth/vendor/resend-otp
- * @desc    Resend OTP for vendor
- * @access  Public
+ * @swagger
+ * /api/auth/vendor/resend-otp:
+ *   post:
+ *     summary: Resend OTP for an unverified vendor account
+ *     tags: [Auth - Vendor]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [email]
+ *             properties:
+ *               email: { type: string }
+ *     responses:
+ *       200: { description: New OTP generated and emailed }
+ *       400: { description: Account not found or already verified }
  */
-router.post('/vendor/resend-otp', async (req, res) => {
+router.post('/vendor/resend-otp', otpLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -950,7 +1046,7 @@ router.post('/vendor/resend-otp', async (req, res) => {
  * @desc    Request OTP for customer password reset
  * @access  Public
  */
-router.post('/customer/forgot-password', async (req, res) => {
+router.post('/customer/forgot-password', passwordResetLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -1063,7 +1159,7 @@ router.post('/customer/forgot-password', async (req, res) => {
  * @desc    Reset customer password using OTP
  * @access  Public
  */
-router.post('/customer/reset-password', async (req, res) => {
+router.post('/customer/reset-password', passwordResetLimiter, async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
 
@@ -1190,7 +1286,7 @@ router.post('/customer/reset-password', async (req, res) => {
  * @desc    Request OTP for vendor password reset
  * @access  Public
  */
-router.post('/vendor/forgot-password', async (req, res) => {
+router.post('/vendor/forgot-password', passwordResetLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -1303,7 +1399,7 @@ router.post('/vendor/forgot-password', async (req, res) => {
  * @desc    Reset vendor password using OTP
  * @access  Public
  */
-router.post('/vendor/reset-password', async (req, res) => {
+router.post('/vendor/reset-password', passwordResetLimiter, async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
 
@@ -1548,6 +1644,7 @@ router.get('/email-status', async (req, res) => {
         normalizedEmail: status.normalizedEmail,
         isRegistered: status.exists,
         registeredAs: status.role,
+        verified: typeof status.verified === 'boolean' ? status.verified : null,
         message: status.message,
         label: status.role ? getRoleLabel(status.role) : null
       }

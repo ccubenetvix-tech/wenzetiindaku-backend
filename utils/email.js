@@ -10,8 +10,11 @@ class EmailService {
     this.transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+        // Gmail App Passwords are shown in the UI grouped with spaces
+        // (e.g. "abcd efgh ijkl mnop") for readability, but SMTP auth needs
+        // them as one contiguous string — strip whitespace defensively.
+        user: (process.env.EMAIL_USER || '').trim(),
+        pass: (process.env.EMAIL_PASS || '').replace(/\s+/g, '')
       }
     });
   }

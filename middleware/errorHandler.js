@@ -6,9 +6,15 @@
 const errorHandler = (err, req, res, next) => {
   console.error('Error:', err);
 
-  // Default error
+  // Default error. Only pass the raw err.message through when it came from an
+  // intentionally-thrown operational error (one that set its own statusCode) or
+  // in development — otherwise an unexpected exception (e.g. a bug in a route with
+  // no try/catch) could leak raw DB/driver internals to the client in production.
+  const isOperationalError = typeof err.statusCode === 'number';
   let error = {
-    message: err.message || 'Internal Server Error',
+    message: (isOperationalError || process.env.NODE_ENV === 'development')
+      ? (err.message || 'Internal Server Error')
+      : 'Internal Server Error',
     statusCode: err.statusCode || 500
   };
 

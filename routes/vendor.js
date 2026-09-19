@@ -27,17 +27,56 @@ const ensureBucketExists = async () => {
   bucketInitialized = true;
 };
 
+const ALLOWED_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
+
+// Verify the buffer's actual magic bytes match the declared MIME type — a mislabeled
+// content-type is how an attacker would smuggle an HTML/SVG/script file in as an "image".
+const detectImageMimeType = (buffer) => {
+  if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return 'image/jpeg';
+  }
+  if (buffer.length >= 8 && buffer.slice(0, 8).toString('hex') === '89504e470d0a1a0a') {
+    return 'image/png';
+  }
+  if (buffer.length >= 12 && buffer.slice(0, 4).toString('ascii') === 'RIFF' && buffer.slice(8, 12).toString('ascii') === 'WEBP') {
+    return 'image/webp';
+  }
+  if (buffer.length >= 6 && ['GIF87a', 'GIF89a'].includes(buffer.slice(0, 6).toString('ascii'))) {
+    return 'image/gif';
+  }
+  return null;
+};
+
 const parseBase64Image = (fileBase64 = '') => {
   const matches = fileBase64.match(/^data:(.*);base64,(.*)$/);
-  const mimeType = matches ? matches[1] : 'image/jpeg';
+  const declaredMimeType = matches ? matches[1] : 'image/jpeg';
   const base64Payload = matches ? matches[2] : fileBase64;
 
   if (!base64Payload) {
     throw new Error('Invalid image payload');
   }
 
+  if (!ALLOWED_IMAGE_MIME_TYPES.includes(declaredMimeType)) {
+    throw new Error('Unsupported image type. Allowed: JPEG, PNG, WEBP, GIF');
+  }
+
   const buffer = Buffer.from(base64Payload, 'base64');
-  return { buffer, mimeType };
+
+  if (buffer.length === 0) {
+    throw new Error('Invalid image payload');
+  }
+
+  if (buffer.length > MAX_IMAGE_BYTES) {
+    throw new Error('Image too large. Maximum size is 5MB');
+  }
+
+  const actualMimeType = detectImageMimeType(buffer);
+  if (!actualMimeType || actualMimeType !== declaredMimeType) {
+    throw new Error('Image content does not match its declared type');
+  }
+
+  return { buffer, mimeType: actualMimeType };
 };
 
 const buildStoragePath = (vendorId, productId, fileName = '', prefix = 'primary') => {
@@ -552,6 +591,7 @@ router.get('/dashboard', protect, async (req, res) => {
       .from('orders')
       .select(`
         id,
+        order_number,
         total_amount,
         status,
         created_at,
@@ -623,6 +663,7 @@ router.get('/dashboard', protect, async (req, res) => {
       },
       recentOrders: recentOrders?.map(order => ({
         id: order.id,
+        order_number: order.order_number,
         customer: order.customers ? `${order.customers.first_name} ${order.customers.last_name}` : 'Unknown',
         date: order.created_at,
         status: order.status,
@@ -1228,7 +1269,7 @@ router.put('/orders/:orderId/status', protect, async (req, res) => {
   try {
     const { id } = req.user;
     const { orderId } = req.params;
-    const { status } = req.body;
+    const { status, paymentCollected, unpaidReason } = req.body;
 
     if (!status) {
       return res.status(400).json({
@@ -1254,7 +1295,7 @@ router.put('/orders/:orderId/status', protect, async (req, res) => {
     // Check if order belongs to vendor and is not cancelled
     const { data: existingOrder, error: checkError } = await supabaseAdmin
       .from('orders')
-      .select('id, status')
+      .select('id, status, payment_method, payment_status')
       .eq('id', orderId)
       .eq('vendor_id', id)
       .single();
@@ -1278,12 +1319,48 @@ router.put('/orders/:orderId/status', protect, async (req, res) => {
       });
     }
 
+    const isCodOrder = (existingOrder.payment_method || '').toLowerCase() === 'cod';
+    const isAlreadyPaid = (existingOrder.payment_status || '').toLowerCase() === 'paid';
+
+    const updatePayload = {
+      status: normalizedStatus,
+      updated_at: new Date().toISOString()
+    };
+
+    // For COD orders, marking as delivered requires confirming whether the
+    // vendor actually collected the cash from the buyer.
+    if (normalizedStatus === 'delivered' && isCodOrder && !isAlreadyPaid) {
+      if (typeof paymentCollected !== 'boolean') {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'PAYMENT_CONFIRMATION_REQUIRED',
+            message: 'Please confirm whether payment was collected for this COD order'
+          }
+        });
+      }
+
+      if (paymentCollected) {
+        updatePayload.payment_status = 'paid';
+        updatePayload.payment_pending_reason = null;
+      } else {
+        const trimmedReason = (unpaidReason || '').toString().trim();
+        if (!trimmedReason) {
+          return res.status(400).json({
+            success: false,
+            error: {
+              message: 'A reason is required when payment has not been collected'
+            }
+          });
+        }
+        updatePayload.payment_status = 'pending';
+        updatePayload.payment_pending_reason = trimmedReason;
+      }
+    }
+
     const { data: order, error } = await supabaseAdmin
       .from('orders')
-      .update({
-        status: normalizedStatus,
-        updated_at: new Date().toISOString()
-      })
+      .update(updatePayload)
       .eq('id', orderId)
       .eq('vendor_id', id)
       .select()

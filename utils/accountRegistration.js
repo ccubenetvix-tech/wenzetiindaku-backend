@@ -12,7 +12,7 @@ const normalizeEmail = (email) => (email || '').trim().toLowerCase();
 const fetchAccountByEmail = async (table, column, email) => {
   const { data, error } = await supabaseAdmin
     .from(table)
-    .select('id')
+    .select('id, verified')
     .eq(column, email)
     .maybeSingle();
 
@@ -46,7 +46,10 @@ const checkEmailRegistration = async (rawEmail) => {
       normalizedEmail,
       exists: true,
       role: 'customer',
-      message: 'This email is already registered as a Customer. Please use a different email.'
+      verified: !!customerAccount.verified,
+      message: customerAccount.verified
+        ? 'This email is already registered as a Customer. Please use a different email.'
+        : 'This email is already registered but not verified yet. Please verify your email by Logging in with your mail and password or request a new code.'
     };
   }
 
@@ -55,7 +58,10 @@ const checkEmailRegistration = async (rawEmail) => {
       normalizedEmail,
       exists: true,
       role: 'vendor',
-      message: 'This email is already registered as a Vendor. Please use a different email.'
+      verified: !!vendorAccount.verified,
+      message: vendorAccount.verified
+        ? 'This email is already registered as a Vendor. Please use a different email.'
+        : 'This email is already registered but not verified yet. Please verify your email by Logging in with your mail and password or request a new code.'
     };
   }
 

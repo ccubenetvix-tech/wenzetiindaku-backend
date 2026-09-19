@@ -6,6 +6,7 @@ const { v4: uuidv4 } = require('uuid');
 const { supabaseAdmin } = require('../config/supabase');
 const emailService = require('../utils/email');
 const { checkEmailRegistration, normalizeEmail } = require('../utils/accountRegistration');
+const { allowedOrigins } = require('../config/allowedOrigins');
 
 const router = express.Router();
 
@@ -28,18 +29,6 @@ const defaultFrontendBase =
   process.env.CLIENT_URL ||
   process.env.FALLBACK_FRONTEND_URL ||
   'http://localhost:5173';
-
-const allowedOrigins = [
-  defaultFrontendBase,
-  process.env.FRONTEND_URL,
-  process.env.CLIENT_URL,
-  process.env.FALLBACK_FRONTEND_URL,
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'https://elegant-pothos-5c2a00.netlify.app',
-  'https://wenze-tii-ndaku.netlify.app',
-  'https://wenzetiindaku-marketplace.netlify.app'
-].filter(Boolean);
 
 const encodeState = (payload) => {
   try {
