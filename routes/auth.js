@@ -1644,6 +1644,7 @@ router.get('/email-status', async (req, res) => {
         normalizedEmail: status.normalizedEmail,
         isRegistered: status.exists,
         registeredAs: status.role,
+        verified: typeof status.verified === 'boolean' ? status.verified : null,
         message: status.message,
         label: status.role ? getRoleLabel(status.role) : null
       }
