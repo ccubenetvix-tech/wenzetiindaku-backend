@@ -1269,7 +1269,7 @@ router.put('/orders/:orderId/status', protect, async (req, res) => {
   try {
     const { id } = req.user;
     const { orderId } = req.params;
-    const { status } = req.body;
+    const { status, paymentCollected, unpaidReason } = req.body;
 
     if (!status) {
       return res.status(400).json({
@@ -1295,7 +1295,7 @@ router.put('/orders/:orderId/status', protect, async (req, res) => {
     // Check if order belongs to vendor and is not cancelled
     const { data: existingOrder, error: checkError } = await supabaseAdmin
       .from('orders')
-      .select('id, status')
+      .select('id, status, payment_method, payment_status')
       .eq('id', orderId)
       .eq('vendor_id', id)
       .single();
@@ -1319,12 +1319,48 @@ router.put('/orders/:orderId/status', protect, async (req, res) => {
       });
     }
 
+    const isCodOrder = (existingOrder.payment_method || '').toLowerCase() === 'cod';
+    const isAlreadyPaid = (existingOrder.payment_status || '').toLowerCase() === 'paid';
+
+    const updatePayload = {
+      status: normalizedStatus,
+      updated_at: new Date().toISOString()
+    };
+
+    // For COD orders, marking as delivered requires confirming whether the
+    // vendor actually collected the cash from the buyer.
+    if (normalizedStatus === 'delivered' && isCodOrder && !isAlreadyPaid) {
+      if (typeof paymentCollected !== 'boolean') {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'PAYMENT_CONFIRMATION_REQUIRED',
+            message: 'Please confirm whether payment was collected for this COD order'
+          }
+        });
+      }
+
+      if (paymentCollected) {
+        updatePayload.payment_status = 'paid';
+        updatePayload.payment_pending_reason = null;
+      } else {
+        const trimmedReason = (unpaidReason || '').toString().trim();
+        if (!trimmedReason) {
+          return res.status(400).json({
+            success: false,
+            error: {
+              message: 'A reason is required when payment has not been collected'
+            }
+          });
+        }
+        updatePayload.payment_status = 'pending';
+        updatePayload.payment_pending_reason = trimmedReason;
+      }
+    }
+
     const { data: order, error } = await supabaseAdmin
       .from('orders')
-      .update({
-        status: normalizedStatus,
-        updated_at: new Date().toISOString()
-      })
+      .update(updatePayload)
       .eq('id', orderId)
       .eq('vendor_id', id)
       .select()

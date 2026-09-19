@@ -1200,6 +1200,7 @@ router.get('/orders', protect, authorize('admin'), async (req, res) => {
         paymentStatus: order.payment_status || 'pending',
         shippingAddress: order.shipping_address || null,
         cancellationReason: order.cancellation_reason || null,
+        paymentPendingReason: order.payment_pending_reason || null,
         items: (order.order_items || []).map(item => ({
           id: item.id,
           productId: item.product?.id,
@@ -1278,6 +1279,7 @@ router.get('/orders', protect, authorize('admin'), async (req, res) => {
         paymentStatus: order.payment_status || 'pending',
         shippingAddress: order.shipping_address || null,
         cancellationReason: order.cancellation_reason || null,
+        paymentPendingReason: order.payment_pending_reason || null,
         items: (order.order_items || []).map(item => ({
           id: item.id,
           productId: item.product?.id,
