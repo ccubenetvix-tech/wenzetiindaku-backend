@@ -49,7 +49,7 @@ const checkEmailRegistration = async (rawEmail) => {
       verified: !!customerAccount.verified,
       message: customerAccount.verified
         ? 'This email is already registered as a Customer. Please use a different email.'
-        : 'This email is already registered but not verified yet. Please verify your email or request a new code.'
+        : 'This email is already registered but not verified yet. Please verify your email by Logging in with your mail and password or request a new code.'
     };
   }
 
@@ -61,7 +61,7 @@ const checkEmailRegistration = async (rawEmail) => {
       verified: !!vendorAccount.verified,
       message: vendorAccount.verified
         ? 'This email is already registered as a Vendor. Please use a different email.'
-        : 'This email is already registered but not verified yet. Please verify your email or request a new code.'
+        : 'This email is already registered but not verified yet. Please verify your email by Logging in with your mail and password or request a new code.'
     };
   }
 
