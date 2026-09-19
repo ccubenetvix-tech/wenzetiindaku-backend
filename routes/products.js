@@ -4,9 +4,13 @@ const { supabaseAdmin } = require('../config/supabase');
 const router = express.Router();
 
 /**
- * @route   GET /api/products
- * @desc    Get all products with filtering and pagination
- * @access  Public
+ * @swagger
+ * /api/products:
+ *   get:
+ *     summary: List products with filtering and pagination
+ *     tags: [Products]
+ *     responses:
+ *       200: { description: Product list returned }
  */
 router.get('/', async (req, res) => {
   try {
@@ -291,7 +295,7 @@ router.get('/:productId', async (req, res) => {
       try {
         const jwt = require('jsonwebtoken');
         const token = authHeader.split(' ')[1];
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
 
         if (decoded.role === 'vendor') {
           // Get product to check vendor_id

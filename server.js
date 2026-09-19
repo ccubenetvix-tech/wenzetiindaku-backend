@@ -23,6 +23,11 @@ require('./config/passport');
 
 // Import middleware
 const { errorHandler } = require('./middleware/errorHandler');
+const { allowedOrigins } = require('./config/allowedOrigins');
+
+// Swagger UI (dev/local only — never mounted in production)
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -52,19 +57,8 @@ app.use(limiter);
 
 app.use(cors({
   origin: (origin, callback) => {
-    const allowed = [
-      process.env.FRONTEND_URL || 'http://localhost:5173',
-      'https://elegant-pothos-5c2a00.netlify.app',
-      'https://wenzetiindaku-frontend-8z159plbu-ccubenetvix-techs-projects.vercel.app/',
-      'https://wenze-tii-ndaku.netlify.app',
-      'https://wenzetiindaku-marketplace.netlify.app',
-      'http://localhost:5173',
-      'http://localhost:3000',
-      'https://wenzetiindaku.vercel.app',
-      'https://www.wenzetiindaku.com/'
-    ];
     // Allow mobile (no origin) and whitelisted web origins
-    if (!origin || allowed.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -80,12 +74,6 @@ app.use(cors({
 // Ensure preflight handled for all routes
 app.options('*', cors());
 
-// Security middleware
-app.use(helmet());
-
-// Rate limiting (disabled or relaxed in development, JSON handler)
-// Rate limiting handled above globally
-
 // Logging middleware
 app.use(morgan('combined'));
 
@@ -94,14 +82,34 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'OK',
-    message: 'WENZE TII NDAKU Backend API is running yayy!!',
+app.get('/health', async (req, res) => {
+  const checks = { server: 'OK', database: 'unknown' };
+  let statusCode = 200;
+
+  try {
+    const { supabaseAdmin } = require('./config/supabase');
+    const { error } = await supabaseAdmin.from('customers').select('id').limit(1);
+    checks.database = error ? 'DOWN' : 'OK';
+    if (error) statusCode = 503;
+  } catch (err) {
+    checks.database = 'DOWN';
+    statusCode = 503;
+  }
+
+  res.status(statusCode).json({
+    status: statusCode === 200 ? 'OK' : 'DEGRADED',
+    message: 'WENZE TII NDAKU Backend API health check',
+    checks,
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
 });
+
+// API docs (dev/local only — fails closed: only enabled when NODE_ENV is explicitly
+// 'development', so a missing/misconfigured NODE_ENV never accidentally exposes it)
+if (process.env.NODE_ENV === 'development') {
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}
 
 // API routes
 app.use('/api/auth', authRoutes);

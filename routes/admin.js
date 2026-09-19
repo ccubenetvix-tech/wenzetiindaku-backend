@@ -1,11 +1,21 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const rateLimit = require('express-rate-limit');
 const { supabaseAdmin } = require('../config/supabase');
 const { protect, authorize } = require('../middleware/auth');
 const emailService = require('../utils/email');
 
 const router = express.Router();
+
+// Strict limiter for admin login — brute-force protection independent of the global API limiter
+const adminLoginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { success: false, error: { message: 'Too many login attempts. Please try again later.' } },
+  standardHeaders: true,
+  legacyHeaders: false
+});
 
 /**
  * Generate JWT token for admin
@@ -23,7 +33,7 @@ const generateToken = (adminId) => {
  * @desc    Admin login
  * @access  Public
  */
-router.post('/login', async (req, res) => {
+router.post('/login', adminLoginLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -36,8 +46,23 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Check if it's the admin credentials
-    if (email === 'admin@wenzetiindaku.com' && password === 'Admin@27A') {
+    // Check admin credentials against env-configured email + bcrypt hash
+    // (never compare against a plaintext password stored in source)
+    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminPasswordHash = process.env.ADMIN_PASSWORD_HASH;
+
+    if (!adminEmail || !adminPasswordHash) {
+      console.error('Admin login misconfigured: ADMIN_EMAIL / ADMIN_PASSWORD_HASH not set');
+      return res.status(500).json({
+        success: false,
+        error: { message: 'Internal server error' }
+      });
+    }
+
+    const emailMatches = email === adminEmail;
+    const passwordMatches = emailMatches && await bcrypt.compare(password, adminPasswordHash);
+
+    if (emailMatches && passwordMatches) {
       // Generate token for admin
       const token = generateToken('admin');
 
@@ -48,7 +73,7 @@ router.post('/login', async (req, res) => {
           token,
           admin: {
             id: 'admin',
-            email: 'wenzetiidnaku@gmail.com',
+            email: adminEmail,
             role: 'admin'
           }
         }
@@ -1156,6 +1181,7 @@ router.get('/orders', protect, authorize('admin'), async (req, res) => {
       const transformedOrders = paginatedOrders.map(order => ({
         id: order.id,
         orderId: order.id,
+        orderNumber: order.order_number || null,
         customer: {
           id: order.customer?.id,
           name: order.customer ? `${order.customer.first_name || ''} ${order.customer.last_name || ''}`.trim() || order.customer.email : 'Unknown',
@@ -1233,6 +1259,7 @@ router.get('/orders', protect, authorize('admin'), async (req, res) => {
       const transformedOrders = (orders || []).map(order => ({
         id: order.id,
         orderId: order.id,
+        orderNumber: order.order_number || null,
         customer: {
           id: order.customer?.id,
           name: order.customer ? `${order.customer.first_name || ''} ${order.customer.last_name || ''}`.trim() || order.customer.email : 'Unknown',

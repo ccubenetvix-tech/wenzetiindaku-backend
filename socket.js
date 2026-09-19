@@ -1,6 +1,7 @@
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 const { supabaseAdmin } = require('./config/supabase');
+const { allowedOrigins } = require('./config/allowedOrigins');
 
 // Import shared encryption utilities
 const { encrypt, decrypt } = require('./utils/encryption');
@@ -43,17 +44,7 @@ function checkRateLimit(userId) {
 function initializeSocket(server) {
   const io = new Server(server, {
     cors: {
-      origin: [
-        process.env.FRONTEND_URL || 'http://localhost:5173',
-        'https://elegant-pothos-5c2a00.netlify.app',
-        'https://wenzetiindaku-frontend-8z159plbu-ccubenetvix-techs-projects.vercel.app',
-        'https://wenze-tii-ndaku.netlify.app',
-        'https://wenzetiindaku-marketplace.netlify.app',
-        'http://localhost:5173',
-        'http://localhost:3000',
-        'https://wenzetiindaku.vercel.app',
-        'https://www.wenzetiindaku.com/'
-      ],
+      origin: allowedOrigins,
       credentials: true,
       methods: ['GET', 'POST']
     },
@@ -70,7 +61,7 @@ function initializeSocket(server) {
       }
 
       // Verify JWT token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
 
       if (decoded.role === 'admin') {
         socket.user = {

@@ -244,9 +244,31 @@ router.put('/profile', async (req, res) => {
 });
 
 /**
- * @route   POST /api/customer/orders
- * @desc    Create new orders from cart items
- * @access  Private
+ * @swagger
+ * /api/customer/orders:
+ *   post:
+ *     summary: Create new order(s) from cart items
+ *     tags: [Customer - Orders]
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [paymentMethod, shippingAddress]
+ *             properties:
+ *               paymentMethod: { type: string, enum: [cod, online] }
+ *               shippingAddress: { type: object }
+ *     responses:
+ *       201: { description: Order(s) created }
+ *       401: { description: Missing/invalid access token }
+ *   get:
+ *     summary: List the authenticated customer's orders
+ *     tags: [Customer - Orders]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Order list returned }
  */
 router.post('/orders', requireVerification, async (req, res) => {
   try {
@@ -280,6 +302,15 @@ router.post('/orders', requireVerification, async (req, res) => {
         success: false,
         error: {
           message: 'Unsupported payment method. Use "cod" or "online".'
+        }
+      });
+    }
+
+    if (normalizedPaymentMethodKey === 'online' && process.env.ENABLE_MAISHAPAY !== 'true') {
+      return res.status(503).json({
+        success: false,
+        error: {
+          message: 'Online payments are currently unavailable. Please select Cash on Delivery.'
         }
       });
     }

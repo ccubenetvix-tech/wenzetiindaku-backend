@@ -14,12 +14,29 @@ router.use((req, res, next) => {
 });
 
 /**
- * @route   POST /api/payment/initiate
- * @desc    Initiate Maisha Pay payment (Server-side)
- * @access  Private (Authenticated Users)
+ * @swagger
+ * /api/payment/initiate:
+ *   post:
+ *     summary: Initiate a MaishaPay payment for an order
+ *     tags: [Payment]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [orderId]
+ *             properties:
+ *               orderId: { type: string }
+ *     responses:
+ *       200: { description: MaishaPay checkout payload returned }
+ *       404: { description: Order not found }
  */
 // Start payment flow - This is called by the frontend instead of generating form data there
 router.post('/initiate', async (req, res) => {
+    if (process.env.ENABLE_MAISHAPAY !== 'true') {
+        return res.status(503).json({ success: false, message: 'Online payments are currently unavailable.' });
+    }
     try {
         const { orderId } = req.body;
 
