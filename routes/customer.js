@@ -381,6 +381,26 @@ router.post('/orders', requireVerification, async (req, res) => {
       return res.status(400).json({ success: false, error: { message: 'Cart is empty' } });
     }
 
+    // Reject upfront if any item exceeds current stock. This is just an early,
+    // user-friendly check - the real guarantee against overselling (including
+    // races between two concurrent checkouts) is the atomic `finalize_order_inventory`
+    // DB function that runs when the order is actually confirmed/paid.
+    const outOfStockItems = validCartItems.filter((item) => item.quantity > (item.product.stock || 0));
+    if (outOfStockItems.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          message: 'Some items in your cart exceed available stock',
+          items: outOfStockItems.map((item) => ({
+            productId: item.product.id,
+            name: item.product.name,
+            available: item.product.stock || 0,
+            requested: item.quantity
+          }))
+        }
+      });
+    }
+
     // --- Create Order Logic ---
     const itemsGroupedByVendor = validCartItems.reduce((acc, item) => {
       const vid = item.product.vendor_id;
