@@ -3,8 +3,9 @@ const { v4: uuidv4 } = require('uuid');
 const { supabaseAdmin } = require('../config/supabase');
 const { authenticateToken, protect, requireRole, requireVerification } = require('../middleware/auth');
 
+const { VAT_RATE } = require('../config/businessConstants');
+
 const UPLOAD_BUCKET = process.env.SUPABASE_PUBLIC_BUCKET || 'public-images';
-const VAT_RATE = 0.16; // 16% VAT
 let bucketInitialized = false;
 
 const ensureBucketExists = async () => {

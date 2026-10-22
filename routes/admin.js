@@ -5,6 +5,7 @@ const rateLimit = require('express-rate-limit');
 const { supabaseAdmin } = require('../config/supabase');
 const { protect, authorize } = require('../middleware/auth');
 const emailService = require('../utils/email');
+const { VAT_RATE, COMMISSION_RATE } = require('../config/businessConstants');
 
 const router = express.Router();
 
@@ -430,6 +431,13 @@ router.get('/dashboard', protect, authorize('admin'), async (req, res) => {
       return sum;
     }, 0) : 0;
 
+    // Orders paid but stuck because stock couldn't be fulfilled (see
+    // orderService.js 'on_hold' path) - needs manual admin attention
+    // (refund or restock), surfaced here so it isn't silently invisible.
+    const onHoldOrders = ordersData
+      ? ordersData.filter((order) => order.status === 'on_hold').length
+      : 0;
+
     res.json({
       success: true,
       data: {
@@ -439,7 +447,8 @@ router.get('/dashboard', protect, authorize('admin'), async (req, res) => {
         totalOrders: totalOrders || 0,
         totalSales: totalSales || 0,
         pendingVendors: pendingVendors || 0,
-        flaggedProducts: flaggedProducts || 0
+        flaggedProducts: flaggedProducts || 0,
+        onHoldOrders
       }
     });
 
@@ -1411,7 +1420,7 @@ router.put('/orders/:orderId/status', protect, authorize('admin'), async (req, r
       });
     }
 
-    const validStatuses = ['pending', 'confirmed', 'processing', 'shipped', 'out_for_delivery', 'delivered', 'completed', 'cancelled'];
+    const validStatuses = ['payment_pending', 'pending', 'confirmed', 'processing', 'shipped', 'out_for_delivery', 'delivered', 'completed', 'cancelled', 'on_hold'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
@@ -1580,21 +1589,40 @@ router.get('/orders/stats', protect, authorize('admin'), async (req, res) => {
       .from('orders')
       .select('status, total_amount, created_at');
 
+    // Buckets cover every status that can actually be set (see 'on_hold' in
+    // orderService.js's inventory-deduction failure path, and 'payment_pending'
+    // set at order creation in customer.js) so these counts reconcile to `total`
+    // instead of leaving an unlabeled gap.
     const stats = {
       total: allOrders?.length || 0,
+      paymentPending: allOrders?.filter(o => o.status === 'payment_pending').length || 0,
       pending: allOrders?.filter(o => o.status === 'pending').length || 0,
+      confirmed: allOrders?.filter(o => o.status === 'confirmed').length || 0,
       processing: allOrders?.filter(o => o.status === 'processing').length || 0,
       shipped: allOrders?.filter(o => o.status === 'shipped').length || 0,
+      outForDelivery: allOrders?.filter(o => o.status === 'out_for_delivery').length || 0,
       delivered: allOrders?.filter(o => o.status === 'delivered' || o.status === 'completed').length || 0,
       cancelled: allOrders?.filter(o => o.status === 'cancelled').length || 0,
+      // Paid (money taken) but stock couldn't be fulfilled - needs manual
+      // refund/restock follow-up, not counted as pipeline revenue.
+      onHold: allOrders?.filter(o => o.status === 'on_hold').length || 0,
       totalRevenue: allOrders?.reduce((sum, order) => {
         if (order.status === 'delivered' || order.status === 'completed') {
           return sum + (Number(order.total_amount) || 0);
         }
         return sum;
       }, 0) || 0,
+      // Still moving through the fulfillment pipeline toward delivery -
+      // excludes cancelled (won't happen) and on_hold (stuck, needs manual action).
       pendingRevenue: allOrders?.reduce((sum, order) => {
-        if (order.status !== 'cancelled' && order.status !== 'delivered' && order.status !== 'completed') {
+        const s = order.status;
+        if (s !== 'cancelled' && s !== 'delivered' && s !== 'completed' && s !== 'on_hold') {
+          return sum + (Number(order.total_amount) || 0);
+        }
+        return sum;
+      }, 0) || 0,
+      onHoldRevenue: allOrders?.reduce((sum, order) => {
+        if (order.status === 'on_hold') {
           return sum + (Number(order.total_amount) || 0);
         }
         return sum;
@@ -1753,10 +1781,18 @@ router.get('/vendors/:vendorId/revenue', protect, authorize('admin'), async (req
       .sort((a, b) => b.unitsSold - a.unitsSold)
       .slice(0, 5);
 
-    const totalProfit = totalRevenue;
+    // totalRevenue is the sum of VAT-inclusive order totals. The vendor's actual
+    // payout isn't the full amount: VAT isn't the vendor's (or the platform's)
+    // money to keep, and the platform takes a commission on top of that. So:
+    //   netRevenue (pre-VAT)      = totalRevenue / (1 + VAT_RATE)
+    //   commission (platform cut) = netRevenue * COMMISSION_RATE
+    //   totalProfit (vendor gain) = netRevenue - commission
+    const netRevenue = totalRevenue / (1 + VAT_RATE);
+    const commission = netRevenue * COMMISSION_RATE;
+    const totalProfit = netRevenue - commission;
 
-    // Average Gain = Total Revenue / Total Orders (Sales Volume)
-    const avgGain = totalSalesVolume > 0 ? (totalRevenue / totalSalesVolume) : 0;
+    // Average Gain = Vendor's net profit / Total Orders (Sales Volume)
+    const avgGain = totalSalesVolume > 0 ? (totalProfit / totalSalesVolume) : 0;
 
     res.json({
       success: true,
@@ -1764,6 +1800,9 @@ router.get('/vendors/:vendorId/revenue', protect, authorize('admin'), async (req
         vendorName: vendor.business_name,
         totalRevenue,
         totalSalesVolume,
+        netRevenue,
+        commissionRate: COMMISSION_RATE,
+        commission,
         totalProfit,
         avgGain,
         totalProducts,

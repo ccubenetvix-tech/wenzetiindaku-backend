@@ -72,24 +72,40 @@ class OrderService {
         }
 
         // 4. Update Inventory (Deduct Stock)
+        // Delegates to the `finalize_order_inventory` DB function (see
+        // supabase/migrations/20260919000001_atomic_order_inventory.sql), which:
+        //  - locks the order + product rows and deducts stock inside one transaction,
+        //    so concurrent orders for the same product can't clobber each other's write
+        //  - rejects (rolls back) the whole deduction if any item lacks sufficient stock,
+        //    instead of silently clamping to 0
+        //  - is idempotent via orders.inventory_deducted, so a retried/duplicate call
+        //    (e.g. a duplicate payment webhook) never deducts stock twice
         if (order.order_items && order.order_items.length > 0) {
             console.log('[OrderService] Updating inventory for order:', orderId);
-            const inventoryUpdates = order.order_items.map(async (item) => {
-                if (item.product) {
-                    const newStock = Math.max(0, (item.product.stock || 0) - item.quantity);
-
-                    const { error: stockError } = await supabaseAdmin
-                        .from('products')
-                        .update({ stock: newStock })
-                        .eq('id', item.product_id);
-
-                    if (stockError) {
-                        console.error(`[OrderService] Failed to update stock for product ${item.product_id}:`, stockError);
-                    }
-                }
+            const { error: inventoryError } = await supabaseAdmin.rpc('finalize_order_inventory', {
+                p_order_id: orderId
             });
 
-            await Promise.allSettled(inventoryUpdates);
+            if (inventoryError) {
+                console.error(`[OrderService] Inventory deduction failed for order ${orderId}:`, inventoryError);
+
+                // Insufficient stock: the order/payment status was already updated above,
+                // so we can't just pretend it succeeded. Put it on hold for manual
+                // follow-up (refund for online payments, vendor/customer contact for COD)
+                // instead of shipping an order we can't actually fulfill. payment_status
+                // is left untouched - for online orders that means it correctly stays
+                // 'paid', signalling that a refund is owed.
+                await supabaseAdmin
+                    .from('orders')
+                    .update({
+                        status: 'on_hold',
+                        cancellation_reason: `Inventory deduction failed: ${inventoryError.message}`,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', orderId);
+
+                throw new Error(`Inventory deduction failed for order ${orderId}: ${inventoryError.message}`);
+            }
         }
 
         // 5. Clear Cart (Customer's cart for these items)
@@ -171,39 +187,19 @@ class OrderService {
     static async restoreInventory(orderId) {
         console.log(`[OrderService] Restoring inventory for order ${orderId}`);
 
-        // Fetch Order Items
-        const { data: orderItems, error } = await supabaseAdmin
-            .from('order_items')
-            .select(`
-                product_id,
-                quantity,
-                product:products (stock)
-            `)
-            .eq('order_id', orderId);
-
-        if (error || !orderItems) {
-            console.error('[OrderService] Failed to fetch items for restoration:', error);
-            return;
-        }
-
-        // Restore Stock
-        const inventoryRestorations = orderItems.map(async (item) => {
-            if (item.product) {
-                const currentStock = item.product.stock || 0;
-                const newStock = currentStock + item.quantity;
-
-                const { error: stockError } = await supabaseAdmin
-                    .from('products')
-                    .update({ stock: newStock })
-                    .eq('id', item.product_id);
-
-                if (stockError) {
-                    console.error(`[OrderService] Failed to restore stock for product ${item.product_id}:`, stockError);
-                }
-            }
+        // Same atomic/idempotent guarantee as finalizeOrder's deduction: locks the
+        // order row and only restores stock if it was actually deducted
+        // (orders.inventory_deducted), so calling this twice for the same order
+        // (e.g. a double "cancel" click) can't double-credit stock.
+        const { error } = await supabaseAdmin.rpc('restore_order_inventory', {
+            p_order_id: orderId
         });
 
-        await Promise.allSettled(inventoryRestorations);
+        if (error) {
+            console.error(`[OrderService] Failed to restore inventory for order ${orderId}:`, error);
+            throw new Error(`Inventory restoration failed for order ${orderId}: ${error.message}`);
+        }
+
         console.log('[OrderService] Inventory restoration complete.');
     }
 }
