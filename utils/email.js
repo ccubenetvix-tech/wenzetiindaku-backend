@@ -141,6 +141,11 @@ class EmailService {
             filename: 'Vendor_Conditions.pdf',
             path: pdfPath
           });
+        } else {
+          // The email body tells the vendor "conditions attached" - if the file is
+          // ever missing (moved/renamed/not included in a deploy), that claim becomes
+          // false with nothing in the logs to catch it. Surface it loudly instead.
+          console.error(`[Email] Vendor_Conditions.pdf not found at ${pdfPath} - welcome email to ${email} will be sent WITHOUT the promised attachment.`);
         }
       }
 
