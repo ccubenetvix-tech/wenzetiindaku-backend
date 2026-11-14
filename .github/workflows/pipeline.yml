@@ -75,15 +75,17 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DEV_PROJECT_ID: ${{ secrets.SUPABASE_DEV_PROJECT_ID }}
-          SUPABASE_DEV_DB_PASSWORD: ${{ secrets.SUPABASE_DEV_DB_PASSWORD }}
+          # `supabase link --password` is deprecated/ignored by the CLI now; the
+          # password must be supplied via this env var instead for non-interactive use.
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DEV_DB_PASSWORD }}
         run: |
-          supabase link             --project-ref "$SUPABASE_DEV_PROJECT_ID"             --password "$SUPABASE_DEV_DB_PASSWORD"
+          supabase link --project-ref "$SUPABASE_DEV_PROJECT_ID"
 
           echo "Checking pending DEV migrations..."
-          supabase db push --dry-run
+          supabase db push --dry-run --remote
 
           echo "Applying DEV migrations..."
-          supabase db push
+          supabase db push --remote
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -128,15 +130,17 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROD_PROJECT_ID: ${{ secrets.SUPABASE_PROD_PROJECT_ID }}
-          SUPABASE_PROD_DB_PASSWORD: ${{ secrets.SUPABASE_PROD_DB_PASSWORD }}
+          # `supabase link --password` is deprecated/ignored by the CLI now; the
+          # password must be supplied via this env var instead for non-interactive use.
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_PROD_DB_PASSWORD }}
         run: |
-          supabase link             --project-ref "$SUPABASE_PROD_PROJECT_ID"             --password "$SUPABASE_PROD_DB_PASSWORD"
+          supabase link --project-ref "$SUPABASE_PROD_PROJECT_ID"
 
           echo "Checking pending PROD migrations..."
-          supabase db push --dry-run
+          supabase db push --dry-run --remote
 
           echo "Applying PROD migrations..."
-          supabase db push
+          supabase db push --remote
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
