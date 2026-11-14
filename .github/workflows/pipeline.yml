@@ -85,7 +85,9 @@ jobs:
           supabase db push --dry-run --remote
 
           echo "Applying DEV migrations..."
-          supabase db push --remote
+          # --yes: skip the interactive confirmation prompt, which has no
+          # terminal to answer it in CI and would otherwise abort the run.
+          supabase db push --remote --yes
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -140,7 +142,9 @@ jobs:
           supabase db push --dry-run --remote
 
           echo "Applying PROD migrations..."
-          supabase db push --remote
+          # --yes: skip the interactive confirmation prompt, which has no
+          # terminal to answer it in CI and would otherwise abort the run.
+          supabase db push --remote --yes
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
